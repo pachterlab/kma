@@ -28,6 +28,7 @@ newIntronRetention <- function(targetExpression, intronToUnion, groups)
     if (length(groups) != length(labs))
         stop("length(groups) must be the same as the number of experiments included (and also in the same order)")
 
+    # TODO: change all the merges to joins using data.table
     allDenomExp <- merge(intronToUnion, targetExpression,
                          by = 'target_id', all.x = T)
     expressionCols <- setdiff(colnames(targetExpression), 'target_id')
