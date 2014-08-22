@@ -11,6 +11,6 @@ Description: This package takes abundance estimation on introns and transcripts
 License: MIT
 Depends:
     R (>= 3.0),
-    data.table
+    dplyr
 Suggests:
     testthat

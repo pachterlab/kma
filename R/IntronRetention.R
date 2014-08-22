@@ -28,32 +28,13 @@ newIntronRetention <- function(targetExpression, intronToUnion, groups)
     if (length(groups) != length(labs))
         stop("length(groups) must be the same as the number of experiments included (and also in the same order)")
 
-    te <- data.table(targetExpression, key = 'target_id')
-    i2u <- data.table(intronToUnion, key = 'target_id')
-    # setkey(targetExpression, target_id)
-    # setkey(intronToUnion, target_id)
+    print('join')
+    allDenomExp <- left_join(intronToUnion, targetExpression, by = c('target_id'))
+    print('summarize')
+    denomExp <- allDenomExp %>% group_by(intron) %>% select(-target_id) %>% 
+        summarise_each(c('sum'))
 
-    # print('bye')
-    print(class(i2u))
-    print(intronToUnion)
-    print(targetExpression)
-    denomExp <- te[i2u,,][,lapply(.SD, sum), by = intron]
-    denomExp <- as.data.frame(denomExp)
-    denomExp$target_id <- NULL
-    # denomExp <- targetExpression[intronToUnion,,]
-    # allDenomExp <- merge(targetExpression, intronToUnion)
-
-    # TODO: change all the merges to joins using data.table
-    # allDenomExp <- merge(intronToUnion, targetExpression,
-    #                      by = 'target_id', all.x = T)
-
-    # denomExp <- ddply(allDenomExp, .(intron),
-    #                   function(df) {
-    #                       apply(df[,expressionCols], 2, sum)
-    #                   }, .parallel = TRUE)
-
-    # eek
-
+    print('rest')
     expressionCols <- setdiff(colnames(targetExpression), 'target_id')
 
     rownames(denomExp) <- as.character(denomExp$intron)
@@ -66,12 +47,12 @@ newIntronRetention <- function(targetExpression, intronToUnion, groups)
     # groups <- factor(groups)
 
     new("IntronRetention",
-        retention = retentionExp,
-        numerator = numExp[rownames(retentionExp),],
-        denominator = denomExp[rownames(retentionExp),],
+        retention = as.data.frame(retentionExp),
+        numerator = as.data.frame(numExp[rownames(retentionExp),]),
+        denominator = as.data.frame(denomExp[rownames(retentionExp),]),
         labels = labs,
         groups = groups,
-        features = targetExpression,
+        features = as.data.frame(targetExpression),
         validIntrons = rep(TRUE, nrow(retentionExp))
         )
     # denomExp
