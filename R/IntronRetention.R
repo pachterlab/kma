@@ -28,22 +28,42 @@ newIntronRetention <- function(targetExpression, intronToUnion, groups)
     if (length(groups) != length(labs))
         stop("length(groups) must be the same as the number of experiments included (and also in the same order)")
 
+    te <- data.table(targetExpression, key = 'target_id')
+    i2u <- data.table(intronToUnion, key = 'target_id')
+    # setkey(targetExpression, target_id)
+    # setkey(intronToUnion, target_id)
+
+    # print('bye')
+    print(class(i2u))
+    print(intronToUnion)
+    print(targetExpression)
+    denomExp <- te[i2u,,][,lapply(.SD, sum), by = intron]
+    denomExp <- as.data.frame(denomExp)
+    denomExp$target_id <- NULL
+    # denomExp <- targetExpression[intronToUnion,,]
+    # allDenomExp <- merge(targetExpression, intronToUnion)
+
     # TODO: change all the merges to joins using data.table
-    allDenomExp <- merge(intronToUnion, targetExpression,
-                         by = 'target_id', all.x = T)
+    # allDenomExp <- merge(intronToUnion, targetExpression,
+    #                      by = 'target_id', all.x = T)
+
+    # denomExp <- ddply(allDenomExp, .(intron),
+    #                   function(df) {
+    #                       apply(df[,expressionCols], 2, sum)
+    #                   }, .parallel = TRUE)
+
+    # eek
+
     expressionCols <- setdiff(colnames(targetExpression), 'target_id')
-    denomExp <- ddply(allDenomExp, .(intron),
-                      function(df) {
-                          apply(df[,expressionCols], 2, sum)
-                      }, .parallel = TRUE)
-    rownames(denomExp) <- denomExp$intron
+
+    rownames(denomExp) <- as.character(denomExp$intron)
     denomExp$intron <- NULL
-    rownames(targetExpression) <- targetExpression$target_id
+    rownames(targetExpression) <- as.character(targetExpression$target_id)
     targetExpression$target_id <- NULL
     numExp <- targetExpression[rownames(denomExp),]
 
     retentionExp <- numExp / denomExp
-    groups <- factor(groups)
+    # groups <- factor(groups)
 
     new("IntronRetention",
         retention = retentionExp,
@@ -54,4 +74,5 @@ newIntronRetention <- function(targetExpression, intronToUnion, groups)
         features = targetExpression,
         validIntrons = rep(TRUE, nrow(retentionExp))
         )
+    # denomExp
 }
