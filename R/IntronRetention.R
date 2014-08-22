@@ -1,10 +1,10 @@
 setClass("IntronRetention",
-         slots = list(retention = "data.frame",
-                      numerator = "data.frame",
-                      denominator = "data.frame",
+         slots = list(retention = "data.table",
+                      numerator = "data.table",
+                      denominator = "data.table",
                       labels = "character",
                       groups = "factor",
-                      features = "data.frame",
+                      features = "data.table",
                       validIntrons = "logical"))
 
 #' Compute intron retention
@@ -28,32 +28,31 @@ newIntronRetention <- function(targetExpression, intronToUnion, groups)
     if (length(groups) != length(labs))
         stop("length(groups) must be the same as the number of experiments included (and also in the same order)")
 
+    te <- data.table(targetExpression, key = 'target_id')
+    i2u <- data.table(intronToUnion, key = 'target_id')
+
     print('join')
-    allDenomExp <- left_join(intronToUnion, targetExpression, by = c('target_id'))
-    print('summarize')
-    denomExp <- allDenomExp %>% group_by(intron) %>% select(-target_id) %>% 
-        summarise_each(c('sum'))
+    denomExp <- te[i2u][,!'target_id', with = F][,lapply(.SD, sum), by = intron]
+    setkey(denomExp, intron)
 
     print('rest')
-    expressionCols <- setdiff(colnames(targetExpression), 'target_id')
 
-    rownames(denomExp) <- as.character(denomExp$intron)
-    denomExp$intron <- NULL
-    rownames(targetExpression) <- as.character(targetExpression$target_id)
-    targetExpression$target_id <- NULL
-    numExp <- targetExpression[rownames(denomExp),]
+    # get just the expression of the introns
+    numExp <- te[ denomExp[,intron,] ]
+    setnames(numExp, c('target_id'), c('intron'))
+    setkey(numExp, intron)
 
-    retentionExp <- numExp / denomExp
-    # groups <- factor(groups)
+    retentionExp <- numExp[,!c('intron'),with = F] / denomExp[,!c('intron'),with = F]
+    retentionExp[,intron := denomExp[,intron,],]
+    setkey(retentionExp, intron)
 
     new("IntronRetention",
-        retention = as.data.frame(retentionExp),
-        numerator = as.data.frame(numExp[rownames(retentionExp),]),
-        denominator = as.data.frame(denomExp[rownames(retentionExp),]),
+        retention = retentionExp,
+        numerator = numExp,
+        denominator = denomExp,
         labels = labs,
         groups = groups,
-        features = as.data.frame(targetExpression),
+        features = te,
         validIntrons = rep(TRUE, nrow(retentionExp))
         )
-    # denomExp
 }
