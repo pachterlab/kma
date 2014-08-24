@@ -47,24 +47,15 @@ newIntronRetention <- function(targetExpression, intronToUnion, groups)
     setnames(numExp, c('target_id'), c('intron'))
     setkey(numExp, intron)
 
-    # TODO: refactor data.table -> data.frame
-    retentionExp <- numExp[,!c('intron'),with = F] / denomExp[,!c('intron'),
-        with = F]
-    retentionExp[,intron := denomExp[,intron,],]
-    setkey(retentionExp, intron)
-
-    # TODO: write check ensuring in same ordering
-    retentionExp <- as.data.frame(retentionExp)
-    rownames(retentionExp) <- retentionExp$intron
-    retentionExp$intron <- NULL
+    denomExp <- as.data.frame(denomExp)
+    rownames(denomExp) <- denomExp$intron
+    denomExp$intron <- NULL
 
     numExp <- as.data.frame(numExp)
     rownames(numExp) <- numExp$intron
     numExp$intron <- NULL
 
-    denomExp <- as.data.frame(denomExp)
-    rownames(denomExp) <- denomExp$intron
-    denomExp$intron <- NULL
+    retentionExp <- numExp / denomExp
 
     rownames(targetExpression) <- targetExpression$target_id
     targetExpression$target_id <- NULL
