@@ -7,12 +7,12 @@
 #' @aliases IntronRetention-class
 #' @export
 setClass("IntronRetention",
-         slots = list(retention = "data.table",
-                      numerator = "data.table",
-                      denominator = "data.table",
+         slots = list(retention = "data.frame",
+                      numerator = "data.frame",
+                      denominator = "data.frame",
                       labels = "character",
                       groups = "factor",
-                      features = "data.table",
+                      features = "data.frame",
                       validIntrons = "logical"))
 
 #' Compute intron retention
@@ -50,9 +50,20 @@ newIntronRetention <- function(targetExpression, intronToUnion, groups)
     setnames(numExp, c('target_id'), c('intron'))
     setkey(numExp, intron)
 
-    retentionExp <- numExp[,!c('intron'),with = F] / denomExp[,!c('intron'),with = F]
+    retentionExp <- numExp[,!c('intron'),with = F] / denomExp[,!c('intron'),
+        with = F]
     retentionExp[,intron := denomExp[,intron,],]
     setkey(retentionExp, intron)
+
+    # TODO: write check ensuring in same ordering
+    retentionExp <- as.data.frame(retentionExp)
+    rownames(retentionExp) <- retentionExp$intron
+
+    numExp <- as.data.frame(numExp)
+    rownames(numExp) <- numExp$intron
+
+    denomExp <- as.data.frame(denomExp)
+    rownames(denomExp) <- denomExp$intron
 
     new("IntronRetention",
         retention = retentionExp,
@@ -60,7 +71,7 @@ newIntronRetention <- function(targetExpression, intronToUnion, groups)
         denominator = denomExp,
         labels = labs,
         groups = groups,
-        features = te,
+        features = targetExpression,
         validIntrons = rep(TRUE, nrow(retentionExp))
         )
 }
