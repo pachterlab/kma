@@ -1,3 +1,11 @@
+#' Class IntronRetention
+#'
+#' Class \code{IntronRentention}.
+#'
+#' @name IntronRetention-class
+#' @rdname IntronRetention-class
+#' @aliases IntronRetention-class
+#' @export
 setClass("IntronRetention",
          slots = list(retention = "data.table",
                       numerator = "data.table",
@@ -56,3 +64,29 @@ newIntronRetention <- function(targetExpression, intronToUnion, groups)
         validIntrons = rep(TRUE, nrow(retentionExp))
         )
 }
+
+#' Filter low expression
+#'
+#' Filter out low expression features.
+#'
+#' @name lowExpressionFilter
+#' @param obj the type
+#' @param ... additional arguments
+#' @rdname lowExpressionFilter-methods
+#' @export lowExpressionFilter
+#' @examples
+#' lowExpressionFilter()
+setGeneric(
+    name = "lowExpressionFilter",
+    def = function(obj, ...)
+        standardGeneric("lowExpressionFilter"))
+
+setMethod("lowExpressionFilter", signature("IntronRetention"),
+    function(obj, lower = 0.25, ...){
+        curFilt <- complete.cases(obj@retention)
+        gt0 <- obj@denominator[,!'intron', with = F][,lapply(.SD, function(x) x > 0),]
+        q <- obj@denominator[gt0,!'intron',with = F][,
+            lapply(.SD, quantile, probs = lower),]
+        # obj@denominator[, lapply(.SD, function(x) x > q),]
+        q
+    })
