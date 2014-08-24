@@ -13,7 +13,7 @@ setClass("IntronRetention",
                       labels = "character",
                       groups = "factor",
                       features = "data.frame",
-                      validIntrons = "logical"))
+                      validIntrons = "data.frame"))
 
 #' Compute intron retention
 #'
@@ -39,17 +39,15 @@ newIntronRetention <- function(targetExpression, intronToUnion, groups)
     te <- data.table(targetExpression, key = 'target_id')
     i2u <- data.table(intronToUnion, key = 'target_id')
 
-    print('join')
     denomExp <- te[i2u][,!'target_id', with = F][,lapply(.SD, sum), by = intron]
     setkey(denomExp, intron)
-
-    print('rest')
 
     # get just the expression of the introns
     numExp <- te[ denomExp[,intron,] ]
     setnames(numExp, c('target_id'), c('intron'))
     setkey(numExp, intron)
 
+    # TODO: refactor data.table -> data.frame
     retentionExp <- numExp[,!c('intron'),with = F] / denomExp[,!c('intron'),
         with = F]
     retentionExp[,intron := denomExp[,intron,],]
@@ -58,12 +56,25 @@ newIntronRetention <- function(targetExpression, intronToUnion, groups)
     # TODO: write check ensuring in same ordering
     retentionExp <- as.data.frame(retentionExp)
     rownames(retentionExp) <- retentionExp$intron
+    retentionExp$intron <- NULL
 
     numExp <- as.data.frame(numExp)
     rownames(numExp) <- numExp$intron
+    numExp$intron <- NULL
 
     denomExp <- as.data.frame(denomExp)
     rownames(denomExp) <- denomExp$intron
+    denomExp$intron <- NULL
+
+    rownames(targetExpression) <- targetExpression$target_id
+    targetExpression$target_id <- NULL
+
+    nGroups <- length(unique(groups))
+
+    validIntrons <- data.frame(
+        matrix(rep(TRUE, nrow(retentionExp) * nGroups),
+            ncol = nGroups))
+    colnames(validIntrons) <- unique(groups)
 
     new("IntronRetention",
         retention = retentionExp,
@@ -72,7 +83,7 @@ newIntronRetention <- function(targetExpression, intronToUnion, groups)
         labels = labs,
         groups = groups,
         features = targetExpression,
-        validIntrons = rep(TRUE, nrow(retentionExp))
+        validIntrons = validIntrons
         )
 }
 
@@ -93,11 +104,27 @@ setGeneric(
         standardGeneric("lowExpressionFilter"))
 
 setMethod("lowExpressionFilter", signature("IntronRetention"),
-    function(obj, lower = 0.25, ...){
+    function(obj, lower = 0.25, ...)
+    {
         curFilt <- complete.cases(obj@retention)
-        gt0 <- obj@denominator[,!'intron', with = F][,lapply(.SD, function(x) x > 0),]
-        q <- obj@denominator[gt0,!'intron',with = F][,
-            lapply(.SD, quantile, probs = lower),]
-        # obj@denominator[, lapply(.SD, function(x) x > q),]
-        q
+
+        gtq <- apply(obj@denominator, 2,
+            function(col)
+            {
+                colGt0 <- col[col > 0]
+                q <- quantile(colGt0, probs = lower)
+                col >= q
+            })
+
+        repGt <- lapply(unique(obj@groups), function(grp)
+            {
+                curGroups <- obj@groups %in% grp
+                apply(data.frame(gtq[,curGroups]), 1, all)
+            })
+        repGt <- do.call(cbind, repGt)
+        colnames(repGt) <- unique(obj@groups)
+
+        obj@validIntrons <- as.data.frame(repGt)
+
+        obj
     })

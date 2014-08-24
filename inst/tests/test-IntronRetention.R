@@ -22,3 +22,23 @@ test_that('construction',
         expect_equal(ir@retention$samp2, c(1 / (0 + 2), 0.25 / 0, 3 / (3 + 0)),
             tolerance = 0.01)
     })
+
+test_that('lowExpressionFilter',
+    {
+        i2t <- data.frame(
+            intron = c('i1', 'i2', 'i3', 'i4'),
+            target_id = c('t1', 't2', 't3', 't4'),
+            stringsAsFactors = F)
+
+        targExp <- data.frame(
+            samp1 = c(rep(0, 4), 1:4),
+            samp2 = c(rep(0, 4), c(1, 0, 2, 3)),
+            samp3 = c(rep(0, 4), 1:4),
+            target_id = c('i1', 'i2', 'i3', 'i4', 't1', 't2', 't3', 't4'),
+            stringsAsFactors = F)
+        ir <- newIntronRetention(targExp, i2t, factor(c('c1', 'c1', 'c2')))
+        ir <- lowExpressionFilter(ir, 0.25)
+
+        expect_equal(ir@validIntrons$c1, c(F, F, T, T))
+        expect_equal(ir@validIntrons$c2, c(F, T, T, T))
+    })
