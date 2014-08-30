@@ -119,3 +119,141 @@ setMethod("lowExpressionFilter", signature("IntronRetention"),
 
         obj
     })
+
+
+#' Single condition intron-retention test
+#'
+#' For a single condition, test whether or not the intron was retained
+#'
+#' @name retentionTest
+#' @param obj the object
+#' @param ... additional arguments
+#' @rdname retentionTest-methods
+#' @export retentionTest
+setGeneric(
+    name = "retentionTest",
+    def = function(obj, ...)
+        standardGeneric("retentionTest"))
+
+setMethod("retentionTest", signature("IntronRetention"),
+    function(obj, level = 0.5, conditions = c("all"))
+    {
+        if( sum(unique(obj@groups) %in% conditions) != length(conditions) &&
+            conditions != c('all') )
+            stop("Not all conditions were found in the original group
+                definition.")
+
+        if (conditions == 'all')
+            conditions <- unique(obj@groups)
+
+        retentionRes <- lapply(conditions,
+            function(cond)
+            {
+                whichSamp <- obj@groups %in% cond
+                valid <- obj@validIntrons[,cond]
+                retRes <- retentionTestSingleCond(obj@retention[valid, whichSamp], level)
+
+                testStat <- rep(NA, length(valid))
+                testStat[valid] <- retRes$testStat
+
+                retention <- rep(NA, length(valid))
+                retention[valid] <- retRes$avg
+
+                variance <- rep(NA, length(valid))
+                variance[valid] <- retRes$variance
+
+                data.frame(intron = rownames(obj@retention), condition = cond,
+                    testStat = testStat, retention = retention,
+                    variance = variance)
+
+            })
+        as.data.frame(rbindlist(retentionRes))
+    })
+
+
+#' @export
+retentionTestSingleCond <- function(retentionMat, level = 0.0)
+{
+    stopifnot(ncol(retentionMat) > 1)
+    m <- apply(retentionMat, 1, mean)
+    v <- apply(retentionMat, 1, var)
+    testStat <- (m - level) / sqrt(v)
+    list(avg = m, variance = v, testStat = testStat)
+}
+
+#' Get summary statistics for an IntronRetention object
+#'
+#' Get summary statistics for an IntronRetention object.
+#'
+#' @name summaryStats
+#' @param obj the object
+#' @param ... additional arguments
+#' @rdname summaryStats-methods
+#' @export summaryStats
+setGeneric(
+    name = "summaryStats",
+    def = function(obj, ...)
+        standardGeneric("summaryStats"))
+
+
+setMethod("summaryStats", signature("IntronRetention"),
+    function(obj, conditions = c("all"))
+    {
+        if( sum(unique(obj@groups) %in% conditions) != length(conditions) &&
+            conditions != c('all') )
+            stop("Not all conditions were found in the original group
+                definition.")
+
+        if (length(conditions) == 1 && conditions == 'all')
+            conditions <- unique(obj@groups)
+
+        allDenom <- getExpCondition(obj, "denominator", conditions)
+        allSummary <- mapply(function(cond, expDf)
+            {
+                m <- apply(expDf, 1, mean)
+                v <- apply(expDf, 1, var)
+                data.frame(intron = rownames(expDf), condition = cond, avg = m,
+                    variance = v, stringsAsFactors = F, row.names = NULL)
+            }, conditions, allDenom, SIMPLIFY = F)
+        print(head(allSummary))
+        as.data.frame(rbindlist(allSummary))
+    })
+
+
+#' Get experimental condition
+#'
+#' Get a filtered data.frame back when specifying a condition and slot
+#'
+#' @name getExpCondition
+#' @param obj the object
+#' @param ... additional arguments
+#' @rdname getExpCondition-methods
+#' @export getExpCondition
+setGeneric(
+    name = "getExpCondition",
+    def = function(obj, ...)
+        standardGeneric("getExpCondition"))
+
+
+setMethod("getExpCondition", signature("IntronRetention"),
+    function(obj, expType = "retention", conditions = c("all"))
+    {
+        stopifnot(expType %in% c("retention", "numerator", "denominator"))
+
+        if( sum(unique(obj@groups) %in% conditions) != length(conditions) &&
+            conditions != c('all') )
+            stop("Not all conditions were found in the original group
+                definition.")
+
+        if (length(conditions) == 1 && conditions == 'all')
+            conditions <- unique(obj@groups)
+
+        allExp <- slot(obj, expType)
+        lapply(conditions,
+            function(cond)
+            {
+                valid <- obj@validIntrons[,cond]
+                whichSamp <- obj@groups %in% cond
+                allExp[valid, whichSamp]
+            })
+    })

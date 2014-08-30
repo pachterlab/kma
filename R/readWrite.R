@@ -10,9 +10,19 @@
 getCol <- function(aList, col, subStringReplace = NULL)
 {
     # TODO: check that col is valid
-    df <- data.frame(do.call(cbind, lapply(aList, function(x) 
-                                           x[order(x$target_id),col])))
-    df$target_id <- sort(aList[[1]]$target_id)
+    targets <- sort(aList[[1]]$target_id)
+
+    df <- lapply(aList,
+        function(x)
+        {
+            rownames(x) <- x$target_id
+            x[targets, col]
+        })
+    class(df) <- 'data.frame'
+    attr(df, 'row.names') <- 1:length(targets)
+    attr(df, 'names') <- 1:ncol(df)
+    df$targets <- targets
+
     if (!is.null(subStringReplace))
         df$target_id <- sub(subStringReplace, '',
                             sort(aList[[1]]$target_id))
