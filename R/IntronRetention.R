@@ -103,6 +103,8 @@ setMethod("lowExpressionFilter", signature("IntronRetention"),
             function(col)
             {
                 colGt0 <- col[col > 0]
+                # removing duplicates gives you more
+                colGt0 <- colGt0[!duplicated(colGt0)]
                 q <- quantile(colGt0, probs = lower)
                 col >= q
             })
@@ -151,23 +153,26 @@ setMethod("retentionTest", signature("IntronRetention"),
             {
                 whichSamp <- obj@groups %in% cond
                 valid <- obj@validIntrons[,cond]
-                retRes <- retentionTestSingleCond(obj@retention[valid, whichSamp], level)
+                retRes <- retentionTestSingleCond(obj@retention[, whichSamp], level)
 
                 testStat <- rep(NA, length(valid))
-                testStat[valid] <- retRes$testStat
+                testStat[valid] <- retRes$testStat[valid]
 
-                retention <- rep(NA, length(valid))
-                retention[valid] <- retRes$avg
+                retention <- retRes$avg
+                variance <- retRes$variance
 
-                variance <- rep(NA, length(valid))
-                variance[valid] <- retRes$variance
+                lretRes <- retentionTestSingleCond(log(obj@retention[, whichSamp]), level)
+
+                log_retention <- lretRes$avg
+                log_variance <- lretRes$variance
 
                 data.frame(intron = rownames(obj@retention), condition = cond,
                     testStat = testStat, retention = retention,
-                    variance = variance)
+                    variance = variance, log_retention = log_retention,
+                    log_variance = log_variance, stringsAsFactors = F)
 
             })
-        as.data.frame(rbindlist(retentionRes))
+        as.data.frame(rbindlist(retentionRes), stringsAsFactors = F)
     })
 
 
