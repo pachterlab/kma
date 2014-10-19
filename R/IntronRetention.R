@@ -24,9 +24,10 @@ setClass("IntronRetention",
 #' @param intronToUnion a table with one column labeled 'intron' and another
 #' labeled 'target_id' that gives all the target_ids which map to the intron
 #' @param groups a vector with the grouping
+#' @param psi if TRUE, compute the psi value. otherwise, compute a rate
 #' @return a IntronRetention object
 #' @export
-newIntronRetention <- function(targetExpression, intronToUnion, groups)
+newIntronRetention <- function(targetExpression, intronToUnion, groups, psi = FALSE)
 {
 
     # TODO: verify all 'introns' are in targetExpression and all target_ids in
@@ -36,16 +37,21 @@ newIntronRetention <- function(targetExpression, intronToUnion, groups)
     if (length(groups) != length(labs))
         stop("length(groups) must be the same as the number of experiments included (and also in the same order)")
 
-    te <- data.table(targetExpression, key = 'target_id')
-    i2u <- data.table(intronToUnion, key = 'target_id')
+    if (psi)
+    {
+        # XXX: this is to add introns in the denom
+        repIntrons <- data_frame(intron = unique(intronToUnion$intron),
+            target_id = unique(intronToUnion$intron))
+        intronToUnion <- rbind_list(intronToUnion, repIntrons)
+    }
 
-    denomExp <- te[i2u][,!'target_id', with = F][,lapply(.SD, sum), by = intron]
-    setkey(denomExp, intron)
+    denomExp <- left_join(intronToUnion, targetExpression, by = "target_id") %>%
+        group_by(intron) %>%
+        select(-(target_id)) %>%
+        summarise_each(funs(sum))
 
-    # get just the expression of the introns
-    numExp <- te[ denomExp[,intron,] ]
-    setnames(numExp, c('target_id'), c('intron'))
-    setkey(numExp, intron)
+    numExp <- select(denomExp, intron) %>% 
+        inner_join(targetExpression, by = c("intron" = "target_id"))
 
     denomExp <- as.data.frame(denomExp)
     rownames(denomExp) <- denomExp$intron
