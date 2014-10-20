@@ -206,7 +206,6 @@ setGeneric(
     def = function(obj, ...)
         standardGeneric("summaryStats"))
 
-
 setMethod("summaryStats", signature("IntronRetention"),
     function(obj, conditions = c("all"))
     {
@@ -268,3 +267,4 @@ setMethod("getExpCondition", signature("IntronRetention"),
                 allExp[valid, whichSamp]
             })
     })
+

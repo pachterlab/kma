@@ -28,6 +28,8 @@ test_that('construction',
 
         # debugonce(newIntronRetention)
         ir <- newIntronRetention(targExp, i2t, factor(c('c1', 'c2')), TRUE)
+        expect_equal(ir@numerator$samp1, c(1, 0.5, 2), tolerance = 0.01)
+        expect_equal(ir@numerator$samp2, c(1, 0.25, 3), tolerance = 0.01)
         expect_equal(ir@retention$samp1, c(1 / (4 + 1 + 1),
                 0.5 / (4 + 0.5), 2 / (10 + 4 + 2)), tolerance = 0.0001)
         expect_equal(ir@retention$samp2, c(1 / (0 + 2 + 1),
