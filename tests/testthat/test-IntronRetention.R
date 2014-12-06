@@ -4,8 +4,8 @@ test_that('construction',
     {
 
         i2t <- data.frame(
-            intron = c('i1', 'i1', 'i2', 'i3', 'i3'),
-            target_id = c('t1', 't2', 't1', 't4', 't1'),
+            intron = c('i1', 'i2', 'i3', 'i3', 'i1'),
+            target_id = c('t1', 't1', 't4', 't1', 't2'),
             stringsAsFactors = F)
 
         targExp <- data.frame(
@@ -14,10 +14,9 @@ test_that('construction',
             target_id = c('i1', 'i2', 't1', 't2', 't3', 't4', 'i3'),
             stringsAsFactors = F)
 
-        # print(targExp)
-        # print(i2t)
-
         ir <- newIntronRetention(targExp, i2t, factor(c('c1', 'c2')))
+
+        expect_equal(rownames(ir@numerator), rownames(ir@denominator))
 
         expect_equal(ir@numerator$samp1, c(1, 0.5, 2), tolerance = 0.01)
         expect_equal(ir@numerator$samp2, c(1, 0.25, 3), tolerance = 0.01)
@@ -26,7 +25,6 @@ test_that('construction',
         expect_equal(ir@retention$samp2, c(1 / (0 + 2), 0.25 / 0, 3 / (3 + 0)),
             tolerance = 0.01)
 
-        # debugonce(newIntronRetention)
         ir <- newIntronRetention(targExp, i2t, factor(c('c1', 'c2')), TRUE)
         expect_equal(ir@numerator$samp1, c(1, 0.5, 2), tolerance = 0.01)
         expect_equal(ir@numerator$samp2, c(1, 0.25, 3), tolerance = 0.01)

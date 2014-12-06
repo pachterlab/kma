@@ -40,7 +40,6 @@ newIntronRetention <- function(targetExpression, intronToUnion, groups, psi = FA
     if (psi)
     {
         # XXX: this is to add introns in the denom
-        print("in here! (psi)")
         repIntrons <- data_frame(intron = unique(intronToUnion$intron),
             target_id = unique(intronToUnion$intron))
         intronToUnion <- rbind_list(intronToUnion, repIntrons)
@@ -56,17 +55,12 @@ newIntronRetention <- function(targetExpression, intronToUnion, groups, psi = FA
         inner_join(targetExpression, by = c("intron" = "target_id")) %>%
         arrange(intron)
 
-    print("all.equal: ")
-    print(all.equal(numExp$intron, denomExp$intron))
-
     denomExp <- as.data.frame(denomExp)
-    # denomExp <- denomExp[order(denomExp$intron),]
-    # rownames(denomExp) <- denomExp$intron
+    rownames(denomExp) <- denomExp$intron
     denomExp$intron <- NULL
 
     numExp <- as.data.frame(numExp)
-    # numExp <- numExp[order(numExp$intron),]
-    # rownames(numExp) <- numExp$intron
+    rownames(numExp) <- numExp$intron
     numExp$intron <- NULL
 
     retentionExp <- numExp / denomExp
@@ -90,6 +84,24 @@ newIntronRetention <- function(targetExpression, intronToUnion, groups, psi = FA
         features = targetExpression,
         validIntrons = validIntrons
         )
+}
+
+#' @export
+melt_retention <- function(obj)
+{
+    stopifnot(is(obj, "IntronRetention"))
+
+    ret <- obj@retention
+    ret <- ret %>% mutate(intron = rownames(ret))
+
+    ret <- melt(ret, id.vars = "intron",
+        variable.name = "sample",
+        value.name = "retention")
+
+    samp_to_condition <- data.frame(sample = colnames(obj@retention),
+        condition = obj@groups, stringsAsFactors = F)
+
+    left_join(ret, samp_to_condition, by = "sample")
 }
 
 #' Filter low expression
@@ -136,6 +148,36 @@ setMethod("lowExpressionFilter", signature("IntronRetention"),
         obj
     })
 
+#' @export
+lowExpressionFilter_upd <- function(obj, lower = 0.25, ...)
+{
+    curFilt <- complete.cases(obj@retention)
+
+    denom_minus <- obj@denominator - obj@numerator
+
+    gtq <- apply(denom_minus, 2,
+        function(col)
+        {
+            colGt0 <- col[col > 0]
+            # removing duplicates gives you more
+            colGt0 <- colGt0[!duplicated(colGt0)]
+            q <- quantile(colGt0, probs = lower)
+            col >= q
+        })
+
+    repGt <- lapply(unique(obj@groups), function(grp)
+        {
+            curGroups <- obj@groups %in% grp
+            apply(data.frame(gtq[,curGroups]), 1, all)
+        })
+    repGt <- do.call(cbind, repGt)
+    colnames(repGt) <- unique(obj@groups)
+
+    obj@validIntrons <- as.data.frame(repGt)
+
+    obj
+}
+
 
 #' Single condition intron-retention test
 #'
@@ -159,60 +201,60 @@ setMethod("retentionTest", signature("IntronRetention"),
             stop("Not all conditions were found in the original group
                 definition.")
 
-        if (conditions == 'all')
-            conditions <- unique(obj@groups)
+                if (conditions == 'all')
+                    conditions <- unique(obj@groups)
 
-        # bs <- bootstrapMean(obj)
-        retentionRes <- lapply(conditions, ret_test, obj, level, adjust)
-        rbind_all(retentionRes)
+                # bs <- bootstrapMean(obj)
+                retentionRes <- lapply(conditions, ret_test, obj, level, adjust)
+                rbind_all(retentionRes)
     })
 
 
+        #' @export
+        ret_test <- function(cond, obj, level, adjust)
+        {
+            print(adjust)
+            whichSamp <- obj@groups %in% cond
+            valid <- obj@validIntrons[,cond]
+            bs <- bootstrapMean(obj)
+            if (adjust)
+            {
+                samp_bs_mean <- apply(bs[,whichSamp], 2, mean, na.rm = T)
+                bs_diff <- apply(obj@retention[valid,whichSamp], 2, mean) - samp_bs_mean
+                # obj@retention[valid,whichSamp] <- t(t(matrix(obj@retention[valid,whichSamp])) - samp_bs_mean)
+                # hello <- t(t(obj@retention[valid,whichSamp]) - bs_diff)
+                obj@retention[valid,whichSamp] <- sweep(obj@retention[valid,whichSamp], 2, bs_diff, "-")
+                # obj@retention[valid,whichSamp] <- t(apply(obj@retention[valid,whichSamp],
+                #         2, pmax, 0))
+                obj@retention[valid,whichSamp] <- t(apply(obj@retention[valid,whichSamp],
+                        2, pmax, 0))
+            }
+
+            retRes <- retentionTestSingleCond(obj@retention[, whichSamp], level)
+
+            testStat <- rep(NA, length(valid))
+            testStat[valid] <- retRes$testStat[valid]
+
+            retention <- retRes$avg
+            variance <- retRes$variance
+
+            # lretRes <- retentionTestSingleCond(log(obj@retention[, whichSamp]), level)
+
+            # log_retention <- lretRes$avg
+            # log_variance <- lretRes$variance
+
+            # data.frame(intron = rownames(obj@retention), condition = cond,
+            #     testStat = testStat, retention = retention,
+            #     variance = variance, log_retention = log_retention,
+            #     log_variance = log_variance, stringsAsFactors = F)
+
+            data.frame(intron = rownames(obj@retention), condition = cond,
+                testStat = testStat, retention = retention,
+                variance = variance, stringsAsFactors = F)
+        }
+
 #' @export
-ret_test <- function(cond, obj, level, adjust)
-{
-    print(adjust)
-    whichSamp <- obj@groups %in% cond
-    valid <- obj@validIntrons[,cond]
-    bs <- bootstrapMean(obj)
-    if (adjust)
-    {
-        samp_bs_mean <- apply(bs[,whichSamp], 2, mean, na.rm = T)
-        bs_diff <- apply(obj@retention[valid,whichSamp], 2, mean) - samp_bs_mean
-        # obj@retention[valid,whichSamp] <- t(t(matrix(obj@retention[valid,whichSamp])) - samp_bs_mean)
-        # hello <- t(t(obj@retention[valid,whichSamp]) - bs_diff)
-        obj@retention[valid,whichSamp] <- sweep(obj@retention[valid,whichSamp], 2, bs_diff, "-")
-        # obj@retention[valid,whichSamp] <- t(apply(obj@retention[valid,whichSamp],
-        #         2, pmax, 0))
-        obj@retention[valid,whichSamp] <- t(apply(obj@retention[valid,whichSamp],
-                2, pmax, 0))
-    }
-
-    retRes <- retentionTestSingleCond(obj@retention[, whichSamp], level)
-
-    testStat <- rep(NA, length(valid))
-    testStat[valid] <- retRes$testStat[valid]
-
-    retention <- retRes$avg
-    variance <- retRes$variance
-
-    # lretRes <- retentionTestSingleCond(log(obj@retention[, whichSamp]), level)
-
-    # log_retention <- lretRes$avg
-    # log_variance <- lretRes$variance
-
-    # data.frame(intron = rownames(obj@retention), condition = cond,
-    #     testStat = testStat, retention = retention,
-    #     variance = variance, log_retention = log_retention,
-    #     log_variance = log_variance, stringsAsFactors = F)
-
-    data.frame(intron = rownames(obj@retention), condition = cond,
-        testStat = testStat, retention = retention,
-        variance = variance, stringsAsFactors = F)
-}
-
-#' @export
-retentionTestSingleCond <- function(retentionMat, level = 0.0, offset = 0.05)
+retentionTestSingleCond <- function(retentionMat, level = 0.0, offset = 0.00)
 {
     stopifnot(ncol(retentionMat) > 1)
     m <- apply(retentionMat, 1, mean)
@@ -321,3 +363,73 @@ setMethod("bootstrapMean", signature("IntronRetention"),
 
         num_mat / denom_mat
     })
+
+#' @export
+lowTpmFilter <- function(obj, min_tpm)
+{
+    rep_filt <- lapply(unique(obj@groups), function(cond)
+        {
+            whichCond <- obj@groups %in% cond
+            apply(obj@denominator[,whichCond], 1, function(row) all(row >= min_tpm))
+        })
+    rep_filt <- do.call(cbind, rep_filt)
+    colnames(rep_filt) <- unique(obj@groups)
+    obj@validIntrons <- as.data.frame(obj@validIntrons & rep_filt)
+
+    obj
+}
+
+#' @export
+lowTpmFilter_upd <- function(obj, min_tpm)
+{
+    rep_filt <- lapply(unique(obj@groups), function(cond)
+        {
+            whichCond <- obj@groups %in% cond
+            apply(obj@denominator[,whichCond] - obj@numerator[,whichCond], 1, function(row) all(row >= min_tpm))
+        })
+    rep_filt <- do.call(cbind, rep_filt)
+    colnames(rep_filt) <- unique(obj@groups)
+    obj@validIntrons <- as.data.frame(obj@validIntrons & rep_filt)
+
+    obj
+}
+
+#' @export
+lowCountFilter <- function(obj, counts, n)
+{
+    counts <- data_frame(target_id = rownames(obj@retention)) %>%
+        inner_join(counts, by = "target_id") %>%
+        arrange(target_id) %>% select(-(target_id))
+
+    rep_filt <- lapply(unique(obj@groups), function(cond)
+        {
+            whichCond <- obj@groups %in% cond
+            apply(counts[,whichCond], 1, function(row) all(row > n));
+        })
+    rep_filt <- do.call(cbind, rep_filt)
+    colnames(rep_filt) <- unique(obj@groups)
+    obj@validIntrons <- as.data.frame(obj@validIntrons & rep_filt)
+
+    obj
+}
+
+#' @export
+perfectPsiFilter <- function(obj)
+{
+    rep_mean <- lapply(unique(obj@groups), function(grp)
+        {
+            whichCond <- obj@groups %in% grp
+
+            mean_ret <- apply(obj@retention[,whichCond], 1, mean)
+            round_mean <- round(mean_ret, 6)
+
+            tmp <- round_mean != 1.0 & round_mean != 0.0 & obj@validIntrons[,grp]
+            tmp[is.na(tmp)] <- FALSE
+            tmp
+        })
+    tmp_names <- colnames(obj@validIntrons)
+    obj@validIntrons <- data.frame(do.call(cbind, rep_mean))
+    colnames(obj@validIntrons) <- tmp_names
+
+    obj
+}
