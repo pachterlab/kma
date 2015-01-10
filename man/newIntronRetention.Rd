@@ -4,21 +4,27 @@
 \alias{newIntronRetention}
 \title{Compute intron retention}
 \usage{
-newIntronRetention(targetExpression, intronToUnion, groups, psi = FALSE)
+newIntronRetention(targetExpression, intronToUnion, groups, psi = TRUE)
 }
 \arguments{
 \item{targetExpression}{a matrix of nothing but expression values and one
 column containing 'target_id's}
 
-\item{intronToUnion}{a table with one column labeled 'intron' and another
-labeled 'target_id' that gives all the target_ids which map to the intron}
+\item{intronToUnion}{a table with columns (all character vectors):
+\describe{
+ \item{intron}{the identifier of the intron}
+ \item{target_id}{the target_id of transcripts compatible with the intron}
+ \item{gene}{the gene name that this intron belongs to}
+ \item{intron_extension}{the actual coordinates of the intron quantified
+ (including the region that overlaps the intronic region)}
+}}
 
 \item{groups}{a vector with the grouping}
 
 \item{psi}{if TRUE, compute the psi value. otherwise, compute a rate}
 }
 \value{
-a IntronRetention object
+an IntronRetention object
 }
 \description{
 Create an IntronRetention object.

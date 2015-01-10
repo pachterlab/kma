@@ -15,14 +15,22 @@ setClass("IntronRetention",
                       features = "data.frame",
                       validIntrons = "data.frame"))
 
+# TODO: update docs below...
+
 #' Compute intron retention
 #'
 #' Create an IntronRetention object.
 #'
 #' @param targetExpression a matrix of nothing but expression values and one
 #' column containing 'target_id's
-#' @param intronToUnion a table with one column labeled 'intron' and another
-#' labeled 'target_id' that gives all the target_ids which map to the intron
+#' @param intronToUnion a table with columns (all character vectors):
+#' \describe{
+#'  \item{intron}{the identifier of the intron}
+#'  \item{target_id}{the target_id of transcripts compatible with the intron}
+#'  \item{gene}{the gene name that this intron belongs to}
+#'  \item{intron_extension}{the actual coordinates of the intron quantified
+#'  (including the region that overlaps the intronic region)}
+#' }
 #' @param groups a vector with the grouping
 #' @param psi if TRUE, compute the psi value. otherwise, compute a rate
 #' @return an IntronRetention object

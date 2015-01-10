@@ -39,10 +39,6 @@ test_that('construction',
     })
 
 
-# undebug(newIntronRetention)
-#
-# debug(newIntronRetention)
-
 test_that('format with gene and extension intron names',
     {
         i2t <- data_frame(intron = c('i1', 'i1', 'i2', 'i3'),
