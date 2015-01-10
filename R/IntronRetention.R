@@ -25,10 +25,12 @@ setClass("IntronRetention",
 #' labeled 'target_id' that gives all the target_ids which map to the intron
 #' @param groups a vector with the grouping
 #' @param psi if TRUE, compute the psi value. otherwise, compute a rate
-#' @return a IntronRetention object
+#' @return an IntronRetention object
 #' @export
-newIntronRetention <- function(targetExpression, intronToUnion, groups, psi = FALSE)
+newIntronRetention <- function(targetExpression, intronToUnion, groups, psi = TRUE)
 {
+    targetExpression <- as.data.frame(targetExpression, stringsAsFactors = F)
+    intronToUnion <- as.data.frame(intronToUnion, stringsAsFactors = F)
 
     # TODO: verify all 'introns' are in targetExpression and all target_ids in
     # targetExpression
@@ -40,28 +42,37 @@ newIntronRetention <- function(targetExpression, intronToUnion, groups, psi = FA
     if (psi)
     {
         # XXX: this is to add introns in the denom
-        repIntrons <- data_frame(intron = unique(intronToUnion$intron),
-            target_id = unique(intronToUnion$intron))
+        # repIntrons <- data_frame(intron = unique(intronToUnion$intron),
+        #     target_id = unique(intronToUnion$intron))
+        repIntrons <- intronToUnion %>%
+            select(intron, gene, intron_extension) %>%
+            distinct() %>%
+            mutate(target_id = intron_extension)
         intronToUnion <- rbind_list(intronToUnion, repIntrons)
     }
 
     denomExp <- left_join(intronToUnion, targetExpression, by = "target_id") %>%
         group_by(intron) %>%
         select(-(target_id)) %>%
-        summarise_each(funs(sum)) %>%
-        arrange(intron)
+        summarise_each(funs(sum), -matches("gene"),
+            -matches("intron_extension")) %>%
+        arrange(intron) %>%
+        left_join(
+            select(intronToUnion, intron, intron_extension) %>%
+                distinct(),
+            by = c("intron"))
 
-    numExp <- select(denomExp, intron) %>%
-        inner_join(targetExpression, by = c("intron" = "target_id")) %>%
-        arrange(intron)
+    numExp <- select(denomExp, intron, intron_extension) %>%
+        inner_join(targetExpression, by = c("intron_extension" = "target_id")) %>%
+        arrange(intron_extension)
 
     denomExp <- as.data.frame(denomExp)
     rownames(denomExp) <- denomExp$intron
-    denomExp$intron <- NULL
+    denomExp <- select(denomExp, -c(intron, intron_extension))
 
     numExp <- as.data.frame(numExp)
     rownames(numExp) <- numExp$intron
-    numExp$intron <- NULL
+    numExp <- select(numExp, -c(intron, intron_extension))
 
     retentionExp <- numExp / denomExp
 
