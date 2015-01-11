@@ -74,11 +74,13 @@ newIntronRetention <- function(targetExpression, intronToUnion, groups, psi = TR
         inner_join(targetExpression, by = c("intron_extension" = "target_id")) %>%
         arrange(intron_extension)
 
-    denomExp <- as.data.frame(denomExp)
+    denomExp <- as.data.frame(denomExp) %>%
+        arrange(intron)
     rownames(denomExp) <- denomExp$intron
     denomExp <- select(denomExp, -c(intron, intron_extension))
 
-    numExp <- as.data.frame(numExp)
+    numExp <- as.data.frame(numExp) %>%
+        arrange(intron)
     rownames(numExp) <- numExp$intron
     numExp <- select(numExp, -c(intron, intron_extension))
 
@@ -451,4 +453,20 @@ perfectPsiFilter <- function(obj)
     colnames(obj@validIntrons) <- tmp_names
 
     obj
+}
+
+#' Get intron lengths from an identifier
+#'
+#' Transform an intron identifier into lengths.
+#'
+#' @param intron_names the names of the introns in format 'chrom:start-stop'
+#' @return an integer vector of the lengths
+#' @export
+intron_length <- function(intron_names)
+{
+    unlist(lapply(strsplit(intron_names, ":"), function(x)
+        {
+            coords <- as.integer(strsplit(x[2], '-')[[1]])
+            coords[2] - coords[1]
+        }))
 }

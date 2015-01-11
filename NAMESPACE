@@ -3,6 +3,8 @@
 export(bootstrapMean)
 export(getCol)
 export(getExpCondition)
+export(get_intron_zc)
+export(intron_length)
 export(lowCountFilter)
 export(lowExpressionFilter)
 export(lowExpressionFilter_upd)

@@ -103,6 +103,12 @@ test_that('retentionTest',
 
     })
 
+test_that('intron length',
+    {
+        i_names <- c('chr1:1-4', 'chr3:10-20', 'chrX:13-14')
+        lens <- intron_length(i_names)
+        expect_equal(lens, c(3, 10, 1))
+    })
 # test_that('retentionTestSingle',
 #     {
 #         set.seed(42)
