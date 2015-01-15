@@ -470,3 +470,29 @@ intron_length <- function(intron_names)
             coords[2] - coords[1]
         }))
 }
+
+#' Generate the null distribution
+#'
+#'
+#' @param grouped_df
+#' @return a numeric with means
+#' @export
+intron_null_dist <- function(grouped_df, n_samp = 10000, test_stat = mean)
+{
+    all_dat <- dcast(grouped_df, intron ~ sample, value.var = "retention")
+    all_dat <- select(all_dat, -c(intron))
+    all_dat <- all_dat[complete.cases(all_dat),]
+
+    samps <- as.matrix(as.data.frame(lapply(all_dat, sample,
+                n_samp,
+                replace = T)))
+
+    data <- apply(samps, 1, test_stat)
+
+    list(data = data, ecdf = ecdf(data))
+}
+
+intron_pval <- function(mean_val, null_dist)
+{
+    1 - null_dist$ecdf(meal_val)
+}
