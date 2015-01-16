@@ -1,58 +1,70 @@
 ---
-title: "Computing Intron Retention With Keep Me Around (KMA)"
+title: "Computing Intron Retention With Keep Me Around (kma_ir)"
 author: "Harold Pimentel"
 date: "`r Sys.Date()`"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Vignette Title}
+  %\VignetteIndexEntry{Introduction}
   %\VignetteEngine{knitr::rmarkdown}
   \usepackage[utf8]{inputenc}
 ---
 
-Vignettes are long form documentation commonly included in packages. Because they are part of the distribution of the package, they need to be as compact as possible. The `html_vignette` output type provides a custom style sheet (and tweaks some options) to ensure that the resulting html is as small as possible. The `html_vignette` format:
+This vignette described how to run the Keep Me Around - Intron Retention
+`kma_ir` suite to compute intron retention in RNA-Seq experiments.
 
-- Never uses retina figures
-- Has a smaller default figure size
-- Uses a custom CSS stylesheet instead of the default Twitter Bootstrap style
+# General pipeline
 
-## Vignette Info
+The general pipeline is as follows:
 
-Note the various macros within the `vignette` setion of the metadata block above. These are required in order to instruct R how to build the vignette. Note that you should change the `title` field and the `\VignetteIndexEntry` to match the title of your vignette.
+1. **Preprocess** to generate intron coordinates and sequences
+1. **Quantify** transcript expression using
+   [eXpress](http://bio.math.berkeley.edu/eXpress/) against augmented
+   transcriptome containing introns
+1. **Postprocess** to compute intron retention using `R` package
 
-## Styles
+**TODO: Put a more detailed flowchart here**
 
-The `html_vignette` template includes a basic CSS theme. To override this theme you can specify your own CSS in the document metadata as follows:
+# Installing
 
-    output: 
-      rmarkdown::html_vignette:
-        css: mystyles.css
+There are two required portions of the tool to perform intron retention
+quantification. The **preprocess** step is written in python
 
-## Figures
+## Installing the preprocessing tools
 
-The figure sizes have been customised so that you can easily put two images side-by-side. 
 
-```{r, fig.show='hold'}
-plot(1:10)
-plot(10:1)
+
+## Installing the quantification tools
+
+The tools needed for quantification are:
+
+- [Bowtie 2](http://bowtie-bio.sourceforge.net/bowtie2/) short read aligner
+- [eXpress](http://bio.math.berkeley.edu/eXpress/) RNA-Seq quantification tool
+
+Please see the corresponding documentation on their respective web pages.
+
+## Installing the postprocessing tools
+
+The postprocessing tools are contained in an `R` packaged called `kma_ir`.
+Currently, the latest package is on
+[Github](http://github.com/pachterlab/kma_ir). To install, make sure you have
+the `devtools` package installed and type
+
+```{r, eval=FALSE}
+devtools::install_github("http://github.com/pachterlab/kma_ir")
 ```
 
-You can enable figure captions by `fig_caption: yes` in YAML:
+# Generate intron coordinates
 
-    output:
-      rmarkdown::html_vignette:
-        fig_caption: yes
+First, gather the required inputs:
 
-Then you can use the chunk option `fig.cap = "Your figure caption."` in **knitr**.
+- An **annotation file** in [GTF
+  format](http://www.ensembl.org/info/website/upload/gff.html)
+- Corresponding **genome file** in [Multi-FASTA
+  format](http://en.wikipedia.org/wiki/FASTA_format) where contig names
+  correspond to the GTF file
 
-## More Examples
+Outputs:
 
-You can write math expressions, e.g. $Y = X\beta + \epsilon$, footnotes^[A footnote here.], and tables, e.g. using `knitr::kable()`.
-
-```{r, echo=FALSE, results='asis'}
-knitr::kable(head(mtcars, 10))
-```
-
-Also a quote using `>`:
-
-> "He who gives up [code] safety for [code] speed deserves neither."
-([via](https://twitter.com/hadleywickham/status/504368538874703872))
+- **introns.fa** - a FASTA file containing the intron sequences
+- **introns.bed** - BED file with coordinates used to quantify intron
+- **intron\_to\_transcripts.txt** - used later
