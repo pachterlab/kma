@@ -53,18 +53,99 @@ the `devtools` package installed and type
 devtools::install_github("http://github.com/pachterlab/kma_ir")
 ```
 
-# Generate intron coordinates
+# Generate intron coordinates (preprocessing)
 
-First, gather the required inputs:
+**TODO: Consider using `system.file("preprocess", package="kma_ir"`)**
 
-- An **annotation file** in [GTF
-  format](http://www.ensembl.org/info/website/upload/gff.html)
-- Corresponding **genome file** in [Multi-FASTA
+After installation, should now have `generate_introns.py` in your Python path.
+This operation only needs to be run whenever you decide to change the
+transcript annotation.
+
+A typical call looks as follows:
+
+```{bash}
+python generate_introns.py --genome seq.fa --gtf trans.gtf --extend N --out out_dir
+    --merge-in trans.fa --merge-out trans_and_introns.fa
+```
+
+With the inputs being:
+
+- `--genome seq.fa`: **genome sequence**  in [Multi-FASTA
   format](http://en.wikipedia.org/wiki/FASTA_format) where contig names
-  correspond to the GTF file
+  correspond to the GTF file.
+- `--gtf trans.gtf`: **annotation file** in [GTF
+  format](http://www.ensembl.org/info/website/upload/gff.html).
+- `--extend N`: Optional. If set, `N` is the number of bases bases to overlap
+  into the intron. Note, this should be at most `read_length - 1`.
+- `--out out_dir`: A directory to write the outputs. Will be created if doesn't
+  already exist.
+- `--merge-in trans.fa`: Optional. A FASTA file containing the sequences of all
+  the transcripts in `trans.gtf`. If set, requires `--merge-out`.
+- `--merge-out trans_and_introns.fa`: Optional. An output file name containing
+  `trans.fa` and the generated intronic sequences. If set, requires
+  `--merge-in`.
 
-Outputs:
+The following outputs will then be put in `out_dir`:
 
-- **introns.fa** - a FASTA file containing the intron sequences
-- **introns.bed** - BED file with coordinates used to quantify intron
-- **intron\_to\_transcripts.txt** - used later
+- **introns.fa** - a FASTA file containing the intron sequences.
+- **introns.bed** - BED file with coordinates used to quantify intron.
+- **intron\_to\_transcripts.txt** - used later.
+- **trans\_and\_introns.fa** - augmented transcriptome containing `introns.fa`
+  and `trans.fa`. basically the result from `cat trans.fa introns.fa`.
+
+# Quantification
+
+**Note**: Technically any quantification tool can be used with `kma_ir`, but currently
+only support with `eXpress` is implemented. Please contact me if you're
+interested in a quantification tool being supported.
+
+Here, we will discuss quantification. After `generate_introns.py` is run,
+`introns.fa` should be combined with the full transcript sequences. This can be
+done using the Linux command `cat`:
+
+```{bash}
+cat trans.fa introns.fa > trans_and_introns.fa
+```
+If you called `--merge-in` and `--merge-out` with `generate_introns.py`, you
+will already have the file `trans_and_introns.fa`. We will assume the file name
+is `trans_and_introns` in the following sections, but the file name can be
+anything.
+
+After you've done this, this section requires the following steps:
+
+1. Create the `Bowtie 2` index
+1. Align reads to the augmented transcriptome
+1. Quantify against the augmented transcriptome
+
+## Creating the Bowtie 2 index
+
+See the `Bowtie 2` manual for more advanced options.
+
+```{bash}
+bowtie2-build --offrate 1 trans_and_introns.fa trans_and_introns
+```
+
+This only has to be run once if you decide to change the gene annotation.
+
+## Align reads
+
+Once you have a `Bowtie 2` index, you can align any number of RNA-Seq
+experiments to that index. The following arguments are recommended when running
+Bowtie 2:
+
+```{bash}
+bowtie -k 200 --rdg 6,5 --rfg 6,5 --score-min L,-.6,-.4 -X trans_and_introns
+    -1 left.fastq -2 right.fastq | samtools view -Sb - > hits.bam
+```
+
+## Quantify
+
+Once you've aligned the reads, you can run eXpress against the alignments. See
+the eXpress website for additional arguments. The general eXpress call is as
+follows:
+
+```{bash}
+express trans_and_introns.fa hits.bam
+```
+
+# Computing intron retention (postprocessing)
