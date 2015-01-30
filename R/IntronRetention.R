@@ -18,7 +18,11 @@
 #' @param psi if TRUE, compute the psi value. otherwise, compute a rate
 #' @return an IntronRetention object
 #' @export
-newIntronRetention <- function(targetExpression, intronToUnion, groups, psi = TRUE)
+newIntronRetention <- function(targetExpression,
+    intronToUnion,
+    groups,
+    unique_counts = NULL,
+    psi = TRUE)
 {
     targetExpression <- as.data.frame(targetExpression, stringsAsFactors = F)
     intronToUnion <- as.data.frame(intronToUnion, stringsAsFactors = F)
@@ -41,6 +45,26 @@ newIntronRetention <- function(targetExpression, intronToUnion, groups, psi = TR
             mutate(target_id = intron_extension)
         intronToUnion <- rbind_list(intronToUnion, repIntrons)
     }
+
+    unique_counts_tbl <- NULL
+
+    if (!is.null(unique_counts))
+    {
+        # TODO: verify column names are exactly the same as in targ_expression
+        cat("'melting' unique counts\n")
+        intron_targ_tbl <- intronToUnion %>%
+            select(intron, intron_extension) %>%
+            distinct() %>%
+            rename(target_id = intron_extension)
+        unique_counts_tbl <- melt(unique_counts, id.vars = "target_id",
+            variable.name = "sample",
+            value.name = "unique_counts")
+
+        unique_counts_tbl <- unique_counts_tbl %>%
+            inner_join(intron_targ_tbl, by = c("target_id")) %>%
+            select(-c(target_id))
+    }
+
 
     cat("computing denominator\n")
     denomExp <- left_join(intronToUnion, targetExpression, by = "target_id") %>%
@@ -75,6 +99,7 @@ newIntronRetention <- function(targetExpression, intronToUnion, groups, psi = TR
     rownames(targetExpression) <- targetExpression$target_id
     targetExpression$target_id <- NULL
 
+    # TODO: include intron_extension in flat
     cat("'melting' expression\n")
     flat = melt_retention(retentionExp, numExp, denomExp, groups)
 
@@ -83,13 +108,23 @@ newIntronRetention <- function(targetExpression, intronToUnion, groups, psi = TR
         arrange(intron, condition) %>%
         group_by(intron, condition)
 
+    if (!is.null(unique_counts))
+    {
+        cat("joining unique_counts and retention data\n")
+        flat <- flat %>%
+            inner_join(unique_counts_tbl, by = c("intron", "sample"))
+    }
+    # TODO: add a list "filters" which keeps track of all the filters and their
+    # calls
+
     structure(list(retention = retentionExp,
             numerator = numExp,
             denominator = denomExp,
             labels = labs,
             groups = groups,
             features = targetExpression,
-            flat = flat
+            flat = flat,
+            unique_counts = unique_counts
             ),
         class = "IntronRetention")
 }
@@ -496,7 +531,7 @@ intron_pval <- function(mean_val, null_dist)
 }
 
 #' @export
-low_tpm_filter <- function(obj, tpm, filter_name = paste0("low_tpm_", round(tpm, 2)))
+filter_low_tpm <- function(obj, tpm, filter_name = paste0("f_low_tpm_", round(tpm, 2)))
 {
     # TODO: check if grouping exists
     obj$flat <- obj$flat %>%
@@ -518,7 +553,56 @@ check_groupings <- function(dat, valid_groups = c("intron", "condition"))
     dat
 }
 
-perfect_zero_filter <- function(obj)
+#' Perfect psi filter
+#'
+#' Remove things that have "perfect" psi scores. A perfect score is when all
+#' samples contain exactly 0 or 1 retention after rounding.
+#'
+#'
+#' @export
+filter_perfect_psi <- function(obj, digits = 5, filter_name = "f_perf_psi")
 {
+    # TODO: check if psi is actually calculated
+    # TODO: check if grouping exists
 
+    obj$flat <- obj$flat %>%
+        mutate(round_ret = round(retention, digits)) %>%
+        mutate_(.dots = setNames(list(~(!((all(round_ret == 0.0)) ||
+                            (all(round_ret == 1.0))))),
+                c(filter_name))) %>%
+        select(-c(round_ret))
+
+
+    obj
+}
+
+
+#' Filter introns with too few unique fragments.
+#'
+#' Filter introns with too few unique fragments.
+#'
+#' @param obj IntronRetention object
+#' @param min_frags the minimum number of fragments required to pass the filter
+#' in every sample
+#' @param filter_name a character string denoting the column name in the final
+#' table
+#' @return an IntronRetention object with \code{flat} containing a new column
+#' named \code{filter_name}
+#' @export
+filter_low_frags <- function(obj, min_frags,
+    filter_name = paste0("f_low_count_", min_frags))
+{
+    # TODO: can refactor this into an independent calculation
+    if (is.null(obj$unique_counts))
+    {
+        stop("Please recreate the retention object with unique counts")
+    }
+
+
+    # require grouping by intron, condition
+    obj$flat <- obj$flat %>%
+        mutate_(.dots = setNames(list(~all(unique_counts >= min_frags)),
+                c(filter_name)))
+
+    obj
 }
