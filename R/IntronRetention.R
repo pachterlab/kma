@@ -1,20 +1,3 @@
-#' Class IntronRetention
-#'
-#' Class \code{IntronRentention}.
-#'
-#' @name IntronRetention-class
-#' @rdname IntronRetention-class
-#' @aliases IntronRetention-class
-#' @export
-setClass("IntronRetention",
-         slots = list(retention = "data.frame",
-                      numerator = "data.frame",
-                      denominator = "data.frame",
-                      labels = "character",
-                      groups = "factor",
-                      features = "data.frame",
-                      validIntrons = "data.frame"))
-
 # TODO: update docs below...
 
 #' Compute intron retention
@@ -59,6 +42,7 @@ newIntronRetention <- function(targetExpression, intronToUnion, groups, psi = TR
         intronToUnion <- rbind_list(intronToUnion, repIntrons)
     }
 
+    cat("computing denominator\n")
     denomExp <- left_join(intronToUnion, targetExpression, by = "target_id") %>%
         group_by(intron) %>%
         select(-(target_id)) %>%
@@ -70,6 +54,7 @@ newIntronRetention <- function(targetExpression, intronToUnion, groups, psi = TR
                 distinct(),
             by = c("intron"))
 
+    cat("computing numerator\n")
     numExp <- select(denomExp, intron, intron_extension) %>%
         inner_join(targetExpression, by = c("intron_extension" = "target_id")) %>%
         arrange(intron_extension)
@@ -84,51 +69,49 @@ newIntronRetention <- function(targetExpression, intronToUnion, groups, psi = TR
     rownames(numExp) <- numExp$intron
     numExp <- select(numExp, -c(intron, intron_extension))
 
+    cat("computing retention\n")
     retentionExp <- numExp / denomExp
 
     rownames(targetExpression) <- targetExpression$target_id
     targetExpression$target_id <- NULL
 
-    nGroups <- length(unique(groups))
+    cat("'melting' expression\n")
+    flat = melt_retention(retentionExp, numExp, denomExp, groups)
 
-    validIntrons <- data.frame(
-        matrix(rep(TRUE, nrow(retentionExp) * nGroups),
-            ncol = nGroups))
-    colnames(validIntrons) <- unique(groups)
+    cat("sorting and grouping by (intron, condition)\n")
+    flat <- flat %>%
+        arrange(intron, condition) %>%
+        group_by(intron, condition)
 
-    new("IntronRetention",
-        retention = retentionExp,
-        numerator = numExp,
-        denominator = denomExp,
-        labels = labs,
-        groups = groups,
-        features = targetExpression,
-        validIntrons = validIntrons
-        )
+    structure(list(retention = retentionExp,
+            numerator = numExp,
+            denominator = denomExp,
+            labels = labs,
+            groups = groups,
+            features = targetExpression,
+            flat = flat
+            ),
+        class = "IntronRetention")
 }
 
 #' @export
-melt_retention <- function(obj)
+melt_retention <- function(ret, num, denom, groupings)
 {
-    stopifnot(is(obj, "IntronRetention"))
+    samp_to_condition <- data.frame(sample = colnames(ret),
+        condition = groupings, stringsAsFactors = FALSE)
 
-    ret <- obj@retention
     ret <- ret %>% mutate(intron = rownames(ret))
 
     ret <- melt(ret, id.vars = "intron",
         variable.name = "sample",
         value.name = "retention")
 
-    samp_to_condition <- data.frame(sample = colnames(obj@retention),
-        condition = obj@groups, stringsAsFactors = FALSE)
 
-    denom <- obj@denominator
     denom <- denom %>% mutate(intron = rownames(denom))
     denom <- melt(denom, id.vars = "intron",
         variable.name = "sample",
         value.name = "denominator")
 
-    num <- obj@numerator
     num <- num %>% mutate(intron = rownames(num))
     num <- melt(num, id.vars = "intron",
         variable.name = "sample",
@@ -512,10 +495,30 @@ intron_pval <- function(mean_val, null_dist)
     1 - null_dist$ecdf(meal_val)
 }
 
-low_tpm_filter <- function(obj, tpm)
+#' @export
+low_tpm_filter <- function(obj, tpm, filter_name = paste0("low_tpm_", round(tpm, 2)))
 {
-    m_ir <- melt_retention(obj)
-    m_ir %>%
-        group_by()
+    # TODO: check if grouping exists
+    obj$flat <- obj$flat %>%
+        mutate_(.dots = setNames(list(~all((denominator - numerator) >= tpm)),
+                c(filter_name)))
+    obj
+}
+
+check_groupings <- function(dat, valid_groups = c("intron", "condition"))
+{
+    grouping_valid <- identical(sort(as.character(groups(dat))),
+        sort(valid_groups))
+
+    if (!grouping)
+    {
+        # TODO: group them!
+    }
+
+    dat
+}
+
+perfect_zero_filter <- function(obj)
+{
 
 }
