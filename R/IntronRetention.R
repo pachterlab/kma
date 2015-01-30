@@ -418,75 +418,6 @@ setMethod("bootstrapMean", signature("IntronRetention"),
         num_mat / denom_mat
     })
 
-#' @export
-lowTpmFilter <- function(obj, min_tpm)
-{
-    rep_filt <- lapply(unique(obj@groups), function(cond)
-        {
-            whichCond <- obj@groups %in% cond
-            apply(obj@denominator[,whichCond], 1, function(row) all(row >= min_tpm))
-        })
-    rep_filt <- do.call(cbind, rep_filt)
-    colnames(rep_filt) <- unique(obj@groups)
-    obj@validIntrons <- as.data.frame(obj@validIntrons & rep_filt)
-
-    obj
-}
-
-#' @export
-lowTpmFilter_upd <- function(obj, min_tpm)
-{
-    rep_filt <- lapply(unique(obj@groups), function(cond)
-        {
-            whichCond <- obj@groups %in% cond
-            apply(obj@denominator[,whichCond] - obj@numerator[,whichCond], 1, function(row) all(row >= min_tpm))
-        })
-    rep_filt <- do.call(cbind, rep_filt)
-    colnames(rep_filt) <- unique(obj@groups)
-    obj@validIntrons <- as.data.frame(obj@validIntrons & rep_filt)
-
-    obj
-}
-
-#' @export
-lowCountFilter <- function(obj, counts, n)
-{
-    counts <- data_frame(target_id = rownames(obj@retention)) %>%
-        inner_join(counts, by = "target_id") %>%
-        arrange(target_id) %>% select(-(target_id))
-
-    rep_filt <- lapply(unique(obj@groups), function(cond)
-        {
-            whichCond <- obj@groups %in% cond
-            apply(counts[,whichCond], 1, function(row) all(row > n));
-        })
-    rep_filt <- do.call(cbind, rep_filt)
-    colnames(rep_filt) <- unique(obj@groups)
-    obj@validIntrons <- as.data.frame(obj@validIntrons & rep_filt)
-
-    obj
-}
-
-#' @export
-perfectPsiFilter <- function(obj)
-{
-    rep_mean <- lapply(unique(obj@groups), function(grp)
-        {
-            whichCond <- obj@groups %in% grp
-
-            mean_ret <- apply(obj@retention[,whichCond], 1, mean)
-            round_mean <- round(mean_ret, 6)
-
-            tmp <- round_mean != 1.0 & round_mean != 0.0 & obj@validIntrons[,grp]
-            tmp[is.na(tmp)] <- FALSE
-            tmp
-        })
-    tmp_names <- colnames(obj@validIntrons)
-    obj@validIntrons <- data.frame(do.call(cbind, rep_mean))
-    colnames(obj@validIntrons) <- tmp_names
-
-    obj
-}
 
 #' Get intron lengths from an identifier
 #'
@@ -530,16 +461,6 @@ intron_pval <- function(mean_val, null_dist)
     1 - null_dist$ecdf(meal_val)
 }
 
-#' @export
-filter_low_tpm <- function(obj, tpm, filter_name = paste0("f_low_tpm_", round(tpm, 2)))
-{
-    # TODO: check if grouping exists
-    obj$flat <- obj$flat %>%
-        mutate_(.dots = setNames(list(~all((denominator - numerator) >= tpm)),
-                c(filter_name)))
-    obj
-}
-
 check_groupings <- function(dat, valid_groups = c("intron", "condition"))
 {
     grouping_valid <- identical(sort(as.character(groups(dat))),
@@ -551,58 +472,4 @@ check_groupings <- function(dat, valid_groups = c("intron", "condition"))
     }
 
     dat
-}
-
-#' Perfect psi filter
-#'
-#' Remove things that have "perfect" psi scores. A perfect score is when all
-#' samples contain exactly 0 or 1 retention after rounding.
-#'
-#'
-#' @export
-filter_perfect_psi <- function(obj, digits = 5, filter_name = "f_perf_psi")
-{
-    # TODO: check if psi is actually calculated
-    # TODO: check if grouping exists
-
-    obj$flat <- obj$flat %>%
-        mutate(round_ret = round(retention, digits)) %>%
-        mutate_(.dots = setNames(list(~(!((all(round_ret == 0.0)) ||
-                            (all(round_ret == 1.0))))),
-                c(filter_name))) %>%
-        select(-c(round_ret))
-
-
-    obj
-}
-
-
-#' Filter introns with too few unique fragments.
-#'
-#' Filter introns with too few unique fragments.
-#'
-#' @param obj IntronRetention object
-#' @param min_frags the minimum number of fragments required to pass the filter
-#' in every sample
-#' @param filter_name a character string denoting the column name in the final
-#' table
-#' @return an IntronRetention object with \code{flat} containing a new column
-#' named \code{filter_name}
-#' @export
-filter_low_frags <- function(obj, min_frags,
-    filter_name = paste0("f_low_count_", min_frags))
-{
-    # TODO: can refactor this into an independent calculation
-    if (is.null(obj$unique_counts))
-    {
-        stop("Please recreate the retention object with unique counts")
-    }
-
-
-    # require grouping by intron, condition
-    obj$flat <- obj$flat %>%
-        mutate_(.dots = setNames(list(~all(unique_counts >= min_frags)),
-                c(filter_name)))
-
-    obj
 }
