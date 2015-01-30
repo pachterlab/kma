@@ -64,3 +64,31 @@ filter_low_frags <- function(obj, min_frags,
 
     obj
 }
+
+#' @export
+aggregate_filters <- function(obj)
+{
+    tmp_summarise <- obj$flat %>%
+        group_by(intron, condition) %>%
+        select(starts_with("f_")) %>%
+        summarise_each(funs(all)) %>%
+        ungroup()
+
+    all_filt <- tmp_summarise %>%
+        select(starts_with("f_")) %>%
+        t() %>%
+        apply(2, all)
+
+    tmp_summarise <- tmp_summarise %>%
+        mutate(f_all = all_filt)
+
+        # ungroup() %>%
+        # rowwise() %>%
+        # do({
+        #     filt_vals <- .[dplyr:::starts_with(names(.), "f_")]
+        #     f_all <- all(unlist(filt_vals))
+        #     data.frame(., f_all = f_all, stringsAsFactors = FALSE)
+        # }) %>%
+        # ungroup()
+    tmp_summarise
+}
