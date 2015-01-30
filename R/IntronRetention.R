@@ -120,9 +120,24 @@ melt_retention <- function(obj)
         value.name = "retention")
 
     samp_to_condition <- data.frame(sample = colnames(obj@retention),
-        condition = obj@groups, stringsAsFactors = F)
+        condition = obj@groups, stringsAsFactors = FALSE)
 
-    left_join(ret, samp_to_condition, by = "sample")
+    denom <- obj@denominator
+    denom <- denom %>% mutate(intron = rownames(denom))
+    denom <- melt(denom, id.vars = "intron",
+        variable.name = "sample",
+        value.name = "denominator")
+
+    num <- obj@numerator
+    num <- num %>% mutate(intron = rownames(num))
+    num <- melt(num, id.vars = "intron",
+        variable.name = "sample",
+        value.name = "numerator")
+
+    m_res <- inner_join(num, denom, by = c("intron", "sample")) %>%
+        inner_join(ret, by = c("intron", "sample"))
+
+    left_join(m_res, samp_to_condition, by = "sample")
 }
 
 #' Filter low expression
@@ -495,4 +510,12 @@ intron_null_dist <- function(grouped_df, n_samp = 10000, test_stat = mean)
 intron_pval <- function(mean_val, null_dist)
 {
     1 - null_dist$ecdf(meal_val)
+}
+
+low_tpm_filter <- function(obj, tpm)
+{
+    m_ir <- melt_retention(obj)
+    m_ir %>%
+        group_by()
+
 }
