@@ -1,3 +1,6 @@
+#' Low TPM filter
+#'
+#'
 #' @export
 filter_low_tpm <- function(obj, tpm, filter_name = paste0("f_low_tpm_", round(tpm, 2)))
 {

@@ -438,12 +438,14 @@ intron_length <- function(intron_names)
 #' Generate the null distribution
 #'
 #'
-#' @param grouped_df
+#' @param flat_grouped
+#' @param n_samp number of samples
+#' @param test_stat test statistic to use (function)
 #' @return a numeric with means
 #' @export
-intron_null_dist <- function(grouped_df, n_samp = 10000, test_stat = mean)
+intron_null_dist <- function(flat_grouped, n_samp = 10000, test_stat = mean)
 {
-    all_dat <- dcast(grouped_df, intron ~ sample, value.var = "retention")
+    all_dat <- dcast(flat_grouped, intron ~ sample, value.var = "retention")
     all_dat <- select(all_dat, -c(intron))
     all_dat <- all_dat[complete.cases(all_dat),]
 
@@ -456,9 +458,10 @@ intron_null_dist <- function(grouped_df, n_samp = 10000, test_stat = mean)
     list(data = data, ecdf = ecdf(data))
 }
 
-intron_pval <- function(mean_val, null_dist)
+#' @export
+intron_pval <- function(mean_val, null_ecdf)
 {
-    1 - null_dist$ecdf(meal_val)
+    1 - null_ecdf(mean_val)
 }
 
 check_groupings <- function(dat, valid_groups = c("intron", "condition"))
@@ -466,8 +469,7 @@ check_groupings <- function(dat, valid_groups = c("intron", "condition"))
     grouping_valid <- identical(sort(as.character(groups(dat))),
         sort(valid_groups))
 
-    if (!grouping)
-    {
+    if (!grouping) {
         # TODO: group them!
     }
 
