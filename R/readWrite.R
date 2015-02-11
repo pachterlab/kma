@@ -4,27 +4,43 @@
 #'
 #' @param aList a list of xprs data.frames
 #' @param col the column you wish to extract
-#' @param subStringReplace replace this substring from the target_id
+#' @param substring_replace replace this substring from the target_id
 #' @return a data.frame with the particular column from express output
 #' @export
-getCol <- function(aList, col, subStringReplace = NULL)
+getCol <- function(aList, col, column_ids, substring_replace = NULL)
 {
-    # TODO: check that col is valid
-    targets <- sort(aList[[1]]$target_id)
+    df <- data.frame(lapply(aList, function(x) x[col]))
 
-    df <- lapply(aList,
-        function(x)
-        {
-            rownames(x) <- x$target_id
-            x[targets, col]
-        })
-    class(df) <- 'data.frame'
-    attr(df, 'row.names') <- 1:length(targets)
-    attr(df, 'names') <- 1:ncol(df)
-    df$targets <- targets
+    setnames(df, colnames(df), column_ids)
 
-    if (!is.null(subStringReplace))
-        df$target_id <- sub(subStringReplace, '',
-                            sort(aList[[1]]$target_id))
+    df$target_id <- aList[[1]]$target_id
+
+    if (!is.null(substring_replace))
+        df$target_id <- sub(substring_replace, '', aList[[1]]$target_id)
+
     df
+}
+
+#' @export
+read_express <- function(file_names, sample_names, condition_names,
+    cols = c("tpm", "uniq_counts"), substring_replace = NULL)
+{
+    cat("Reading all eXpress data...\n")
+    all_xprs <- lapply(file_names, fread, header = TRUE, stringsAsFactors = FALSE,
+        data.table = FALSE)
+
+    cat("Sorting...\n")
+    all_xprs <- lapply(all_xprs, arrange, target_id)
+
+    res <- lapply(cols, function(col){
+        cat("Extracting column: ", col, "\n")
+        getCol(all_xprs, col, sample_names, substring_replace)
+        })
+
+    names(res) <- cols
+    res$all_data <- all_xprs
+    res$condition <- condition_names
+    res$sample <- sample_names
+
+    res
 }

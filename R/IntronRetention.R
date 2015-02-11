@@ -24,21 +24,19 @@ newIntronRetention <- function(targetExpression,
     unique_counts = NULL,
     psi = TRUE)
 {
-    targetExpression <- as.data.frame(targetExpression, stringsAsFactors = F)
-    intronToUnion <- as.data.frame(intronToUnion, stringsAsFactors = F)
+    targetExpression <- as.data.frame(targetExpression, stringsAsFactors = FALSE)
+    intronToUnion <- as.data.frame(intronToUnion, stringsAsFactors = FALSE)
 
     # TODO: verify all 'introns' are in targetExpression and all target_ids in
     # targetExpression
     labs <- setdiff(colnames(targetExpression), 'target_id')
 
-    if (length(groups) != length(labs))
+    if (length(groups) != length(labs)) {
         stop("length(groups) must be the same as the number of experiments included (and also in the same order)")
+    }
 
     if (psi)
     {
-        # XXX: this is to add introns in the denom
-        # repIntrons <- data_frame(intron = unique(intronToUnion$intron),
-        #     target_id = unique(intronToUnion$intron))
         repIntrons <- intronToUnion %>%
             select(intron, gene, intron_extension) %>%
             distinct() %>%
@@ -101,7 +99,7 @@ newIntronRetention <- function(targetExpression,
 
     # TODO: include intron_extension in flat
     cat("'melting' expression\n")
-    flat = melt_retention(retentionExp, numExp, denomExp, groups)
+    flat <- melt_retention(retentionExp, numExp, denomExp, groups)
 
     cat("sorting and grouping by (intron, condition)\n")
     flat <- flat %>%
@@ -114,6 +112,12 @@ newIntronRetention <- function(targetExpression,
         flat <- flat %>%
             inner_join(unique_counts_tbl, by = c("intron", "sample"))
     }
+
+    intron_to_ext <- intronToUnion %>%
+        select(intron, intron_extension) %>%
+        distinct() %>%
+        mutate(extension_len = intron_length(intron_extension))
+
     # TODO: add a list "filters" which keeps track of all the filters and their
     # calls
 
@@ -124,7 +128,8 @@ newIntronRetention <- function(targetExpression,
             groups = groups,
             features = targetExpression,
             flat = flat,
-            unique_counts = unique_counts
+            unique_counts = unique_counts,
+            intron_to_extension = intron_to_ext
             ),
         class = "IntronRetention")
 }
@@ -474,4 +479,9 @@ check_groupings <- function(dat, valid_groups = c("intron", "condition"))
     }
 
     dat
+}
+
+merge_zc_res <- function(obj, zc_data) {
+    # TODO: basic checks that the two are consistent
+
 }
