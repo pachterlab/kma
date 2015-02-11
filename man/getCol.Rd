@@ -4,7 +4,7 @@
 \alias{getCol}
 \title{Get the columns from eXpress output}
 \usage{
-getCol(aList, col, substring_replace = NULL)
+getCol(aList, col, column_ids, substring_replace = NULL)
 }
 \arguments{
 \item{aList}{a list of xprs data.frames}
