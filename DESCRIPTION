@@ -8,9 +8,11 @@ Author: Harold Pimentel
 Maintainer: Harold Pimentel <haroldpimentel@gmail.com>
 Description: This package takes abundance estimation on introns and transcripts
     and computes statistics on them.
-License: MIT
+License: GPL-2 | file LICENSE
 Depends: 
     R (>= 3.0),
+    data.table,
+    reshape2,
     dplyr
 Suggests: 
     testthat,
