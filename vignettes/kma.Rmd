@@ -1,5 +1,5 @@
 ---
-title: "Computing Intron Retention With Keep Me Around (kma_ir)"
+title: "Computing Intron Retention With Keep Me Around (kma)"
 author: "Harold Pimentel"
 date: "`r Sys.Date()`"
 output: rmarkdown::html_vignette
@@ -9,8 +9,8 @@ vignette: >
   \usepackage[utf8]{inputenc}
 ---
 
-This vignette described how to run the Keep Me Around - Intron Retention
-`kma_ir` suite to compute intron retention in RNA-Seq experiments.
+This vignette described how to run the Keep Me Around `kma` suite to compute
+intron retention in RNA-Seq experiments.
 
 # General pipeline
 
