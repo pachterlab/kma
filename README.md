@@ -22,4 +22,8 @@ library("kma")
 
 # Tutorial
 
-After it has been installed, please see the vignette in R **TODO**
+After it has been installed, please see the vignette in R:
+
+```{r}
+vignette("kma", "kma")
+```

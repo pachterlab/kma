@@ -4,7 +4,7 @@ author: "Harold Pimentel"
 date: "`r Sys.Date()`"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Introduction}
+  %\VignetteIndexEntry{Walkthrough}
   %\VignetteEngine{knitr::rmarkdown}
   \usepackage[utf8]{inputenc}
 ---
@@ -16,22 +16,27 @@ intron retention in RNA-Seq experiments.
 
 The general pipeline is as follows:
 
-1. **Preprocess** to generate intron coordinates and sequences
+1. **Pre-process** to generate intron coordinates and sequences
 1. **Quantify** transcript expression using
    [eXpress](http://bio.math.berkeley.edu/eXpress/) against augmented
    transcriptome containing introns
-1. **Postprocess** to compute intron retention using `R` package
+1. **Post-process** to compute intron retention using `R` package
 
 **TODO: Put a more detailed flowchart here**
 
 # Installing
 
 There are two required portions of the tool to perform intron retention
-quantification. The **preprocess** step is written in python
+quantification. The **pre-process** step is written in python
 
-## Installing the preprocessing tools
+## Installing the pre-processing tools
 
+If you have installed the `R` package, then you have successfully installed the
+pre-processing tools. From `R`, you can find the path by typing:
 
+```{r}
+system.file("preprocess", package="kma")
+```
 
 ## Installing the quantification tools
 
@@ -42,29 +47,32 @@ The tools needed for quantification are:
 
 Please see the corresponding documentation on their respective web pages.
 
-## Installing the postprocessing tools
+## Installing the post-processing tools
 
-The postprocessing tools are contained in an `R` packaged called `kma_ir`.
+The post-processing tools are contained in an `R` packaged called `kma`.
 Currently, the latest package is on
-[Github](http://github.com/pachterlab/kma_ir). To install, make sure you have
+[Github](http://github.com/pachterlab/kma). To install, make sure you have
 the `devtools` package installed and type
 
 ```{r, eval=FALSE}
-devtools::install_github("http://github.com/pachterlab/kma_ir")
+devtools::install_github("http://github.com/pachterlab/kma")
 ```
 
-# Generate intron coordinates (preprocessing)
+# Generate intron coordinates (pre-processing)
 
-**TODO: Consider using `system.file("preprocess", package="kma_ir"`)**
-
-After installation, should now have `generate_introns.py` in your Python path.
-This operation only needs to be run whenever you decide to change the
-transcript annotation.
-
-A typical call looks as follows:
+The path can be found in R by typing `system.file("preprocess",
+package="kma")`. Open a terminal and put this path in an environment variable:
 
 ```{bash}
-python generate_introns.py --genome seq.fa --gtf trans.gtf --extend N --out out_dir
+PRE=/path/to/kma/preprocess
+```
+
+If you are on a Mac, the path might look like: /Library/Frameworks/R.framework/Versions/3.1/Resources/library/kma/preprocess
+
+We are now ready to generate the introns. A typical call looks as follows:
+
+```{bash}
+python $PRE/generate_introns.py --genome seq.fa --gtf trans.gtf --extend N --out out_dir
     --merge-in trans.fa --merge-out trans_and_introns.fa
 ```
 
@@ -106,6 +114,7 @@ done using the Linux command `cat`:
 ```{bash}
 cat trans.fa introns.fa > trans_and_introns.fa
 ```
+
 If you called `--merge-in` and `--merge-out` with `generate_introns.py`, you
 will already have the file `trans_and_introns.fa`. We will assume the file name
 is `trans_and_introns` in the following sections, but the file name can be
@@ -134,7 +143,7 @@ experiments to that index. The following arguments are recommended when running
 Bowtie 2:
 
 ```{bash}
-bowtie -k 200 --rdg 6,5 --rfg 6,5 --score-min L,-.6,-.4 -X trans_and_introns
+bowtie2 -k 200 --rdg 6,5 --rfg 6,5 --score-min L,-.6,-.4 -X trans_and_introns
     -1 left.fastq -2 right.fastq | samtools view -Sb - > hits.bam
 ```
 
@@ -148,4 +157,29 @@ follows:
 express trans_and_introns.fa hits.bam
 ```
 
-# Computing intron retention (postprocessing)
+# Computing intron retention (post-processing)
+
+The first step is to the load the quantification data into R. The function you
+want is 
+
+# A worked example
+
+## Organization
+We recommend organizing your experiments in the following format:
+
+```
+experiment
+|____conditionA
+| |____rep1
+| |____rep2
+| |____rep3
+|____conditionB
+| |____rep1
+| |____rep2
+| |____rep3
+```
+
+where `experiment` is the top level for the particular set of experiments,
+`conditionX` refers to the condition (e.g. tumor, or control), and `repY`
+represents the biological replicates. This allows for a structured way to keep
+track of your data as well as an easy way to load it in `R`.
