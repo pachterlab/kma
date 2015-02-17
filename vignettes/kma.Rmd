@@ -1,8 +1,10 @@
 ---
-title: "Computing Intron Retention With Keep Me Around (kma)"
+title: "Computing Intron Retention With Keep Me Around (`kma`)"
 author: "Harold Pimentel"
 date: "`r Sys.Date()`"
-output: rmarkdown::html_vignette
+output:
+  rmarkdown::html_document:
+    toc: true
 vignette: >
   %\VignetteIndexEntry{Walkthrough}
   %\VignetteEngine{knitr::rmarkdown}
@@ -31,11 +33,19 @@ quantification. The **pre-process** step is written in python
 
 ## Installing the pre-processing tools
 
-If you have installed the `R` package, then you have successfully installed the
+If you have installed the `R` package (see installing the post-processing
+tools), then you have successfully installed the
 pre-processing tools. From `R`, you can find the path by typing:
 
 ```{r}
 system.file("preprocess", package="kma")
+```
+
+The only additional dependencies are the Python packages `pyfasta`, `biopython` and `pysam`.
+Both packages can be installed via PyPI:
+
+```{bash}
+pip install pyfasta biopython pysam
 ```
 
 ## Installing the quantification tools
@@ -73,7 +83,6 @@ We are now ready to generate the introns. A typical call looks as follows:
 
 ```{bash}
 python $PRE/generate_introns.py --genome seq.fa --gtf trans.gtf --extend N --out out_dir
-    --merge-in trans.fa --merge-out trans_and_introns.fa
 ```
 
 With the inputs being:
@@ -87,19 +96,12 @@ With the inputs being:
   into the intron. Note, this should be at most `read_length - 1`.
 - `--out out_dir`: A directory to write the outputs. Will be created if doesn't
   already exist.
-- `--merge-in trans.fa`: Optional. A FASTA file containing the sequences of all
-  the transcripts in `trans.gtf`. If set, requires `--merge-out`.
-- `--merge-out trans_and_introns.fa`: Optional. An output file name containing
-  `trans.fa` and the generated intronic sequences. If set, requires
-  `--merge-in`.
 
 The following outputs will then be put in `out_dir`:
 
 - **introns.fa** - a FASTA file containing the intron sequences.
 - **introns.bed** - BED file with coordinates used to quantify intron.
 - **intron\_to\_transcripts.txt** - used later.
-- **trans\_and\_introns.fa** - augmented transcriptome containing `introns.fa`
-  and `trans.fa`. basically the result from `cat trans.fa introns.fa`.
 
 # Quantification
 
@@ -159,8 +161,21 @@ express trans_and_introns.fa hits.bam
 
 # Computing intron retention (post-processing)
 
-The first step is to the load the quantification data into R. The function you
-want is 
+The first step is to the load the quantification data into `R`. The function
+`read_express` takes a list of file names, sample names, and condition names.
+`read_express` then returns a list with the attributes:
+
+- `tpm` - a `data.frame` with TPM of all samples
+- `uniq_counts` - a `data.frame` with the number of unique counts of all
+  samples
+- `all_data` - a list of `data.frame`s from all the eXpress output. Sorted by
+  `target_id`.
+- `sample` - a character vector for each sample, describing the sample (e.g.
+  `tumor_rep1`)
+- `condition` - a character vector for each sample describing the grouping
+  (e.g. `tumor`)
+
+
 
 # A worked example
 
@@ -183,3 +198,72 @@ where `experiment` is the top level for the particular set of experiments,
 `conditionX` refers to the condition (e.g. tumor, or control), and `repY`
 represents the biological replicates. This allows for a structured way to keep
 track of your data as well as an easy way to load it in `R`.
+
+## Pre-processing
+
+Show the commands and do an ls to see what the output looks like
+
+## Quantification
+
+Simply provide the quantification results
+
+## Post-processing
+
+### Loading the files
+
+**TODO: remove the eval=FALSE sections and actually include the data**
+Since we organized our data nicely, we can load the data into R quite easily
+using `Sys.glob`:
+
+```{r eval=FALSE}
+base_dir <- system.file("example", package="kma")
+xprs_fnames <- Sys.glob(file.path(base_dir, "quantification/*/*/results.xprs"))
+```
+
+Sample names can be inferred from the organization as well:
+
+```{r eval=FALSE}
+sample_names <- sub(file.path(base_dir, "quantification/"), "", xprs_fnames) %>%
+    sub("/results.xprs", "", .) %>%
+    gsub("/", "", .)
+```
+
+Assuming you label your replicates according to the condition they are a part
+of, you can also infer condition names:
+
+```{r eval=FALSE}
+condition_names <- sub("[0-9]+", "", sample_names)
+```
+
+You now have:
+
+- `xprs_fnames` - a character vector of file names pointing to the
+  quantification files
+- `sample_names` - a character vector of identifiers for each sample
+- `condition_names` - a character vector of identifiers of conditions
+
+We can now load all the eXpress data into R:
+
+```{r eval=FALSE}
+xprs <- read_express(xprs_fnames, sample_names, condition_names)
+```
+
+This results in a named list with the following members:
+
+```{r eval=FALSE}
+names(xprs)
+```
+
+To create an `IntronRetention` object, you can call `newIntronRetention` with
+the following command:
+
+```{r eval=FALSE}
+ir <- newIntronRetention(xprs$tpm, i2t, xprs$condition, xprs$uniq_counts)
+```
+
+### Filtering
+
+#### Zero coverage
+
+### Exploratory analysis
+

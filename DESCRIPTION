@@ -19,5 +19,7 @@ Imports:
     dplyr
 Suggests:
     testthat,
-    knitr
+    BiocStyle,
+    knitr,
+    rmarkdown
 VignetteBuilder: knitr

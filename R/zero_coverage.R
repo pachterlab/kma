@@ -87,7 +87,7 @@ get_batch_intron_zc <- function(fnames,
     }
 
     sample_to_conditions <- data.frame(sample = sample_names,
-        condition = condition_names)
+        condition = condition_names, stringsAsFactors = FALSE)
 
     # call get_intron_zc on all the samples and dump them into one table
     all_zc <- Map(get_intron_zc, fnames, sample_names, regex) %>%
