@@ -1,0 +1,10 @@
+chr17	refGene	exon	74730197	74732546	0	-	.	gene_id "SRSF2"; transcript_id "NM_003016"; exon_number "1"; exon_id "NM_003016.1"; gene_name "SRSF2";
+chr17	refGene	stop_codon	74732243	74732245	0	-	0	gene_id "SRSF2"; transcript_id "NM_003016"; exon_number "1"; exon_id "NM_003016.1"; gene_name "SRSF2";
+chr17	refGene	CDS	74732246	74732546	0	-	1	gene_id "SRSF2"; transcript_id "NM_003016"; exon_number "1"; exon_id "NM_003016.1"; gene_name "SRSF2";
+chr17	refGene	CDS	74732881	74733242	0	-	0	gene_id "SRSF2"; transcript_id "NM_003016"; exon_number "2"; exon_id "NM_003016.2"; gene_name "SRSF2";
+chr17	refGene	exon	74732881	74733493	0	-	.	gene_id "SRSF2"; transcript_id "NM_003016"; exon_number "2"; exon_id "NM_003016.2"; gene_name "SRSF2";
+chr17	refGene	start_codon	74733240	74733242	0	-	0	gene_id "SRSF2"; transcript_id "NM_003016"; exon_number "1"; exon_id "NM_003016.1"; gene_name "SRSF2";
+chr17	refGene	exon	74730197	74731240	0	-	.	gene_id "SRSF2"; transcript_id "NR_036608"; exon_number "1"; exon_id "NR_036608.1"; gene_name "SRSF2";
+chr17	refGene	exon	74731854	74731957	0	-	.	gene_id "SRSF2"; transcript_id "NR_036608"; exon_number "2"; exon_id "NR_036608.2"; gene_name "SRSF2";
+chr17	refGene	exon	74732236	74732546	0	-	.	gene_id "SRSF2"; transcript_id "NR_036608"; exon_number "3"; exon_id "NR_036608.3"; gene_name "SRSF2";
+chr17	refGene	exon	74732881	74733493	0	-	.	gene_id "SRSF2"; transcript_id "NR_036608"; exon_number "4"; exon_id "NR_036608.4"; gene_name "SRSF2";

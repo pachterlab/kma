@@ -1,2 +1,19 @@
+# Mac
 *.DS_Store
+
+# R package
 inst/doc
+
+# Python
+*.pyc
+
+# pyfasta
+*.fa.flat
+*.fa.gdx
+
+# R files
+*.RData
+*.Rapp.history
+
+# Misc
+*.pdf
