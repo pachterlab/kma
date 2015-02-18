@@ -437,7 +437,7 @@ ir_test <- retention_test(ir)
 head(ir_test)
 ```
 
-Significant introns can be found using the dplyr `filter` function:
+Significant introns can be found using the dplyr function `filter`:
 
 ```{r}
 ir_test %>%
