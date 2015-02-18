@@ -42,9 +42,6 @@ newIntronRetention <- function(targetExpression,
     unique_counts = NULL,
     psi = TRUE)
 {
-    targetExpression <- as.data.frame(targetExpression, stringsAsFactors = FALSE)
-    intronToUnion <- as.data.frame(intronToUnion, stringsAsFactors = FALSE)
-
     # TODO: verify all 'introns' are in targetExpression and all target_ids in
     # targetExpression
     labs <- setdiff(colnames(targetExpression), 'target_id')
@@ -53,12 +50,21 @@ newIntronRetention <- function(targetExpression,
         stop("length(groups) must be the same as the number of experiments included (and also in the same order)")
     }
 
+    # targetExpression <- data.table(targetExpression)
+    # intronToUnion <- data.table(intronToUnion)
+    targetExpression <- targetExpression %>%
+        arrange(target_id)
+
+    intronToUnion <- intronToUnion %>%
+        arrange(target_id)
+
+
     if (psi) {
         repIntrons <- intronToUnion %>%
             select(intron, gene, intron_extension) %>%
             distinct() %>%
             mutate(target_id = intron_extension)
-        intronToUnion <- rbind_list(intronToUnion, repIntrons)
+        intronToUnion <- data.table(rbind_list(intronToUnion, repIntrons))
     }
 
     unique_counts_tbl <- NULL
@@ -74,14 +80,17 @@ newIntronRetention <- function(targetExpression,
             variable.name = "sample",
             value.name = "unique_counts")
 
-        unique_counts_tbl <- unique_counts_tbl %>%
-            inner_join(intron_targ_tbl, by = c("target_id")) %>%
-            select(-c(target_id)) %>%
-            mutate(sample = as.character(sample))
+        # return(list(unique_counts = unique_counts_tbl, intron_targ = intron_targ_tbl))
+        unique_counts_tbl <- data.table(unique_counts_tbl) %>%
+            inner_join(data.table(intron_targ_tbl), by = c("target_id")) %>%
+            select(-c(target_id)) # %>%
+            # mutate(sample = as.character(sample))
     }
 
 
     cat("computing denominator\n")
+    intronToUnion <- data.table(intronToUnion)
+    targetExpression <- data.table(targetExpression)
     denomExp <- left_join(intronToUnion, targetExpression, by = "target_id") %>%
         group_by(intron) %>%
         select(-(target_id)) %>%
@@ -93,17 +102,24 @@ newIntronRetention <- function(targetExpression,
                 distinct(),
             by = c("intron"))
 
+    tmp_targExpression <- targetExpression %>%
+        rename("intron_extension" = target_id) %>%
+        data.table()
+
+    denomExp <- data.table(denomExp)
     cat("computing numerator\n")
     numExp <- select(denomExp, intron, intron_extension) %>%
-        inner_join(targetExpression, by = c("intron_extension" = "target_id")) %>%
+        # inner_join(targetExpression, by = c("intron_extension" = "target_id")) %>%
+        inner_join(tmp_targExpression, by = c("intron_extension")) %>%
         arrange(intron_extension)
+    rm(tmp_targExpression)
 
-    denomExp <- as.data.frame(denomExp, stringsAsFactors = FALSE) %>%
+    denomExp <- as.data.frame(denomExp) %>%
         arrange(intron)
     rownames(denomExp) <- denomExp$intron
     denomExp <- select(denomExp, -c(intron, intron_extension))
 
-    numExp <- as.data.frame(numExp, stringsAsFactors = FALSE) %>%
+    numExp <- as.data.frame(numExp) %>%
         arrange(intron)
     rownames(numExp) <- numExp$intron
     numExp <- select(numExp, -c(intron, intron_extension))
@@ -118,16 +134,19 @@ newIntronRetention <- function(targetExpression,
     cat("'melting' expression\n")
     flat <- melt_retention(retentionExp, numExp, denomExp, groups)
 
-    cat("sorting and grouping by (intron, condition)\n")
-    flat <- flat %>%
-        arrange(intron, condition) %>%
-        group_by(intron, condition)
+    flat <- data.table(flat)
 
     if (!is.null(unique_counts)) {
         cat("joining unique_counts and retention data\n")
         flat <- flat %>%
             inner_join(unique_counts_tbl, by = c("intron", "sample"))
     }
+
+    cat("sorting and grouping by (intron, condition)\n")
+    flat <- flat %>%
+        arrange(intron, condition) %>%
+        group_by(intron, condition)
+
 
     intron_to_ext <- intronToUnion %>%
         select(intron, intron_extension) %>%
@@ -136,6 +155,12 @@ newIntronRetention <- function(targetExpression,
 
     # TODO: add a list "filters" which keeps track of all the filters and their
     # calls
+    retentionExp <- as.data.frame(retentionExp, stringsAsFactors = FALSE)
+    numExp <- as.data.frame(numExp, stringsAsFactors = FALSE)
+    denomExp <- as.data.frame(denomExp, stringsAsFactors = FALSE)
+    targetExpression <- as.data.frame(targetExpression, stringsAsFactors = FALSE)
+    flat <- as.data.frame(flat, stringsAsFactors = FALSE)
+    intron_to_ext <- as.data.frame(intron_to_ext, stringsAsFactors = FALSE)
 
     structure(list(retention = retentionExp,
             numerator = numExp,
@@ -160,7 +185,7 @@ melt_retention <- function(ret, num, denom, groupings)
 
     ret <- reshape2::melt(ret, id.vars = "intron",
         variable.name = "sample",
-        value.name = "retention", stringsAsFactors = FALSE) %>%
+        value.name = "retention") %>%
         mutate(sample = as.character(sample))
 
     denom <- denom %>% mutate(intron = rownames(denom))
@@ -175,9 +200,16 @@ melt_retention <- function(ret, num, denom, groupings)
         value.name = "numerator") %>%
         mutate(sample = as.character(sample))
 
-    m_res <- inner_join(num, denom, by = c("intron", "sample")) %>%
+    num <- data.table(num)
+    denom <- data.table(denom)
+    ret <- data.table(ret)
+
+    m_res <- inner_join(num, denom, by = c("intron", "sample"))
+    m_res <- m_res %>%
         inner_join(ret, by = c("intron", "sample"))
 
+    samp_to_condition <- data.table(samp_to_condition)
+    m_res <- data.table(m_res)
     left_join(m_res, samp_to_condition, by = "sample")
 }
 
