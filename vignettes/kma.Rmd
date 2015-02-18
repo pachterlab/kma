@@ -294,7 +294,6 @@ The other samples can be processed similarly.
 
 ### Loading the files
 
-**TODO: remove the eval=FALSE sections and actually include the data**
 Since we organized our data nicely, we can load the data into R quite easily
 using `Sys.glob`:
 
@@ -368,7 +367,85 @@ print(ir)
 
 ### Filtering
 
+Filter functions have the following format: `filter_name(ir, options)` where
+`ir` is an `IntronRetention` object, and options are options for the filter.
+They return a `IntronRetention` object with an updated `flat` member. Filters
+can be implemented by the user, but should return `TRUE` if the intron passes
+the filter and `FALSE` otherwise. The column name for each filter should begin
+with `f_`.
+
+This example filters out denominators that are below 1 TPM, introns that have
+exactly 0 or 1 PSI (due to either no contributions from the intron coverage or
+solely coverage from the intron). `filter_low_frags` filters out introns that
+don't have `N` number of unique reads:
+
+```{r}
+ir <- ir %>%
+    filter_low_tpm(1) %>%
+    filter_perfect_psi() %>%
+    filter_low_frags(3)
+colnames(ir$flat)
+```
+
 #### Zero coverage
 
-### Exploratory analysis
+Zero coverage filter has to be computed on the read alignments and
+corresponding eXpress results.
 
+```{bash}
+python $PRE/zeroCoverage.py experiment/ortho/ortho1/xprs_out/results.xprs \
+    experiment/ortho/ortho1/sf3b1.bam \
+    experiment/ortho/ortho1/zero_coverage.txt
+```
+
+The output is then in `experiment/ortho/ortho1/zero_coverage.txt`. Zero
+coverage data can be read in using the function `get_batch_intron_zc`. Like
+`read_express` it needs file names, sample names, and condition names:
+
+```{r}
+zc_fnames <- Sys.glob(file.path(base_dir, "experiment/*/*/zero_coverage.txt"))
+zc_samples <- sub(file.path(base_dir, "experiment/[a-z]+/"), "", zc_fnames) %>%
+    sub("zero_coverage.txt", "", .) %>%
+    gsub("/", "", .)
+zc_conditions <- sub("[0-9]+", "", zc_samples)
+all_zc <- get_batch_intron_zc(zc_fnames, zc_samples, zc_conditions)
+head(all_zc)
+```
+
+The result from `get_batch_intron_zc` is a `data.frame` that can be inspected
+manually if you'd like. To incorporate it to `kma`, use
+`summarize_zero_coverage`:
+
+```{r}
+ir <- summarize_zero_coverage(ir, all_zc)
+```
+
+This adds a new column to `ir$flat` called `f_zc_*`:
+
+```{r}
+colnames(ir$flat)
+```
+
+### Hypothesis testing
+
+Hypothesis testing first aggregates all filters (by taking the intersection of
+all filters), computes the null distribution, then returns a data frame
+summarizing the test:
+
+```{r}
+ir_test <- retention_test(ir)
+head(ir_test)
+```
+
+Significant introns can be found using the dplyr `filter` function:
+
+```{r}
+ir_test %>%
+    filter(qvalue <= 0.10) %>%
+    select(-c(pvalue))
+```
+
+In this case we only see one significant intron. Since we have such a small
+dataset, the null distribution isn't that reliable so the results shouldn't be
+taken too seriously, but when the data set is larger (like in a normal
+experiment), the results are more reliable.

@@ -53,8 +53,7 @@ newIntronRetention <- function(targetExpression,
         stop("length(groups) must be the same as the number of experiments included (and also in the same order)")
     }
 
-    if (psi)
-    {
+    if (psi) {
         repIntrons <- intronToUnion %>%
             select(intron, gene, intron_extension) %>%
             distinct() %>%
@@ -64,8 +63,7 @@ newIntronRetention <- function(targetExpression,
 
     unique_counts_tbl <- NULL
 
-    if (!is.null(unique_counts))
-    {
+    if (!is.null(unique_counts)) {
         # TODO: verify column names are exactly the same as in targ_expression
         cat("'melting' unique counts\n")
         intron_targ_tbl <- intronToUnion %>%
@@ -125,8 +123,7 @@ newIntronRetention <- function(targetExpression,
         arrange(intron, condition) %>%
         group_by(intron, condition)
 
-    if (!is.null(unique_counts))
-    {
+    if (!is.null(unique_counts)) {
         cat("joining unique_counts and retention data\n")
         flat <- flat %>%
             inner_join(unique_counts_tbl, by = c("intron", "sample"))
