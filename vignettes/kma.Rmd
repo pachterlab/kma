@@ -1,10 +1,14 @@
 ---
-title: "Computing Intron Retention With Keep Me Around (`kma`)"
+title: "Computing Intron Retention With KeepMeAround (`kma`)"
 author: "Harold Pimentel"
 date: "`r Sys.Date()`"
 output:
   rmarkdown::html_document:
     toc: true
+    number_sections: true
+  pdf_document:
+    toc: true
+    number_sections: true
 vignette: >
   %\VignetteIndexEntry{Walkthrough}
   %\VignetteEngine{knitr::rmarkdown}
@@ -26,12 +30,16 @@ The general pipeline is as follows:
 
 **TODO: Put a more detailed flowchart here**
 
-# Installing
+## Installing
 
 There are two required portions of the tool to perform intron retention
-quantification. The **pre-process** step is written in python
+quantification, though installing the post-processing tools (intron retention)
+installs the python code with the exception of dependencies. The
+**pre-process** step is written in python and only needs to be run when the
+annotation changes. The **post-processing** step is written in `R` and where
+most of your interaction will take place.
 
-## Installing the pre-processing tools
+### Installing the pre-processing tools
 
 If you have installed the `R` package (see installing the post-processing
 tools), then you have successfully installed the
@@ -48,7 +56,7 @@ Both packages can be installed via PyPI:
 pip install pyfasta biopython pysam
 ```
 
-## Installing the quantification tools
+### Installing the quantification tools
 
 The tools needed for quantification are:
 
@@ -57,7 +65,7 @@ The tools needed for quantification are:
 
 Please see the corresponding documentation on their respective web pages.
 
-## Installing the post-processing tools
+### Installing the post-processing tools
 
 The post-processing tools are contained in an `R` packaged called `kma`.
 Currently, the latest package is on
@@ -68,7 +76,28 @@ the `devtools` package installed and type
 devtools::install_github("http://github.com/pachterlab/kma")
 ```
 
-# Generate intron coordinates (pre-processing)
+## Organization
+We recommend organizing your experiments in the following format:
+
+```
+experiment
+|____conditionA
+| |____rep1
+| |____rep2
+| |____rep3
+|____conditionB
+| |____rep1
+| |____rep2
+| |____rep3
+```
+
+where `experiment` is the top level for the particular set of experiments,
+`conditionX` refers to the condition (e.g. tumor, or control), and `repY`
+represents the biological replicates. This allows for a structured way to keep
+track of your data as well as an easy way to load it in `R`. An example can be
+seen in the section 2 "A worked example".
+
+## Generate intron coordinates (pre-processing)
 
 The path can be found in R by typing `system.file("preprocess",
 package="kma")`. Open a terminal and put this path in an environment variable:
@@ -103,7 +132,7 @@ The following outputs will then be put in `out_dir`:
 - **introns.bed** - BED file with coordinates used to quantify intron.
 - **intron\_to\_transcripts.txt** - used later.
 
-# Quantification
+## Quantification
 
 **Note**: Technically any quantification tool can be used with `kma_ir`, but currently
 only support with `eXpress` is implemented. Please contact me if you're
@@ -126,7 +155,7 @@ After you've done this, this section requires the following steps:
 1. Align reads to the augmented transcriptome
 1. Quantify against the augmented transcriptome
 
-## Creating the Bowtie 2 index
+### Creating the Bowtie 2 index
 
 See the `Bowtie 2` manual for more advanced options.
 
@@ -136,7 +165,7 @@ bowtie2-build --offrate 1 trans_and_introns.fa trans_and_introns
 
 This only has to be run once if you decide to change the gene annotation.
 
-## Align reads
+### Align reads
 
 Once you have a `Bowtie 2` index, you can align any number of RNA-Seq
 experiments to that index. The following arguments are recommended when running
@@ -147,7 +176,7 @@ bowtie2 -k 200 --rdg 6,5 --rfg 6,5 --score-min L,-.6,-.4 -X trans_and_introns
     -1 left.fastq -2 right.fastq | samtools view -Sb - > hits.bam
 ```
 
-## Quantify
+### Quantify
 
 Once you've aligned the reads, you can run eXpress against the alignments. See
 the eXpress website for additional arguments. The general eXpress call is as
@@ -157,7 +186,7 @@ follows:
 express trans_and_introns.fa hits.bam
 ```
 
-# Computing intron retention (post-processing)
+## Computing intron retention (post-processing)
 
 The first step is to the load the quantification data into `R`. The function
 `read_express` takes a list of file names, sample names, and condition names.
@@ -177,25 +206,12 @@ The first step is to the load the quantification data into `R`. The function
 
 We will run through the example **TODO** put link here:
 
-## Organization
-We recommend organizing your experiments in the following format:
-
-```
-experiment
-|____conditionA
-| |____rep1
-| |____rep2
-| |____rep3
-|____conditionB
-| |____rep1
-| |____rep2
-| |____rep3
-```
-
-where `experiment` is the top level for the particular set of experiments,
-`conditionX` refers to the condition (e.g. tumor, or control), and `repY`
-represents the biological replicates. This allows for a structured way to keep
-track of your data as well as an easy way to load it in `R`.
+This example contains the reads, annotation, and sequences for the SF3B1 gene
+in orthochromatic erythroblasts from
+[GSE53635](http://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE53635). This
+dataset is unrealistically small, so the results aren't entirely reliable, but
+can be run very quickly through the pipeline. Thus, the results aren't very
+reliable, but serves as an example of how to run through the pipeline.
 
 ## Pre-processing
 
@@ -364,7 +380,6 @@ Printing the `IntronRetention` object results in a short summary:
 print(ir)
 ```
 
-
 ### Filtering
 
 Filter functions have the following format: `filter_name(ir, options)` where
@@ -449,3 +464,9 @@ In this case we only see one significant intron. Since we have such a small
 dataset, the null distribution isn't that reliable so the results shouldn't be
 taken too seriously, but when the data set is larger (like in a normal
 experiment), the results are more reliable.
+
+
+# Intron retention in terminal erythropoiesis
+
+**TODO** This section is coming soon. It will showcase how to make plots as
+well as some diagnostics one might do on a complete data set.
