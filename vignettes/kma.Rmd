@@ -38,7 +38,7 @@ tools), then you have successfully installed the
 pre-processing tools. From `R`, you can find the path by typing:
 
 ```{r}
-system.file("preprocess", package="kma")
+system.file("pre-process", package="kma")
 ```
 
 The only additional dependencies are the Python packages `pyfasta`, `biopython` and `pysam`.
@@ -117,10 +117,8 @@ done using the Linux command `cat`:
 cat trans.fa introns.fa > trans_and_introns.fa
 ```
 
-If you called `--merge-in` and `--merge-out` with `generate_introns.py`, you
-will already have the file `trans_and_introns.fa`. We will assume the file name
-is `trans_and_introns` in the following sections, but the file name can be
-anything.
+We assume the file name is `trans_and_introns.fa` in the following sections, but
+the file name can be anything.
 
 After you've done this, this section requires the following steps:
 
@@ -175,9 +173,9 @@ The first step is to the load the quantification data into `R`. The function
 - `condition` - a character vector for each sample describing the grouping
   (e.g. `tumor`)
 
-
-
 # A worked example
+
+We will run through the example **TODO** put link here:
 
 ## Organization
 We recommend organizing your experiments in the following format:
@@ -201,11 +199,96 @@ track of your data as well as an easy way to load it in `R`.
 
 ## Pre-processing
 
-Show the commands and do an ls to see what the output looks like
+Assuming you downloaded the data to __...__
+
+Run `system.file` in `R` to get the pre-processing directory (see the
+pre-processing section above for more information):
+
+```{r, eval=FALSE}
+system.file("pre-process", package = "kma")
+
+```
+
+Then, store this value in an environment variable in your shell:
+
+```
+PRE=/path/to/kma/pre-process
+```
+
+Let's move to the directory and run the pre-processing:
+
+```
+cd example
+python $PRE/generate_introns.py --genome genome/chr2.fa \
+    --gtf annotation/refGene_sf3b1.gtf --extend 25 \
+    --out kma_pre-process_out
+```
+
+The output files will then be stored in `kma_pre-process_out` which you can
+view using `ls kma_pre-process_out`:
+
+```
+intron_to_transcripts.txt introns.bed               introns.fa
+```
+
+The `introns.fa` file can now be merged with the transcriptome sequences in the
+quantification section.
 
 ## Quantification
 
-Simply provide the quantification results
+### Merging the transcriptome and intron sequences
+
+Next, we need to merge the transcriptome and intron sequences. This can be done
+using the command `cat`:
+
+```
+cat annotation/sf3b1.fa kma_pre-process_out/introns.fa > annotation/sf3b1_with_introns.fa
+```
+
+The file `annotations/sf3b1_with_introns.fa` now contains the transcriptome
+sequences and the intron sequences. This FASTA file can now be used to build
+a `Bowtie2` index for alignment.
+
+### Building the `Bowtie2` index
+
+We want to align against the introns and transcripts. Thus, we will build
+a `Bowtie2` index. See the `Bowtie2` website for more information on the
+parameters:
+
+```{bash}
+bowtie2-build --offrate 1 annotation/sf3b1_with_introns.fa annotation/sf3b1_with_introns
+```
+
+This call will result in many Bowtie index files (`*.bt2` files).
+
+### Alignment
+
+For alignment, we will only align one sample as aligning other samples can be
+done similarly and can be automated. Please note, the reads we are aligning are
+single-end -- the command for paired-end reads can be found on the Bowtie
+2 website.
+
+```{bash}
+bowtie2 -k 200 --rdg 6,5 --rfg 6,5 --score-min L,-.6,-.4 -x annotation/sf3b1_with_introns \
+    -U experiment/ortho/ortho1/*.fastq.gz |
+    samtools view -Sb - > experiment/ortho/ortho1/sf3b1.bam
+```
+
+This will result in a BAM file `experiment/ortho/ortho1/sf3b1.bam` which can
+then be quantified using eXpress.
+
+### Quantification with eXpress
+
+Now that we have alignment files, we can quantify isoform and intron expression
+with eXpress:
+
+```{bash}
+express -o experiment/ortho/ortho1/xprs_out annotation/sf3b1_with_introns.fa \
+    experiment/ortho/ortho1/sf3b1.bam
+```
+
+The quantification results will now be in `experiment/ortho/ortho1/xprs_out`.
+The other samples can be processed similarly.
 
 ## Post-processing
 
@@ -215,24 +298,27 @@ Simply provide the quantification results
 Since we organized our data nicely, we can load the data into R quite easily
 using `Sys.glob`:
 
-```{r eval=FALSE}
+```{r}
 base_dir <- system.file("example", package="kma")
-xprs_fnames <- Sys.glob(file.path(base_dir, "quantification/*/*/results.xprs"))
+xprs_fnames <- Sys.glob(file.path(base_dir, "experiment/*/*/xprs_out/results.xprs"))
+xprs_fnames
 ```
 
 Sample names can be inferred from the organization as well:
 
-```{r eval=FALSE}
-sample_names <- sub(file.path(base_dir, "quantification/"), "", xprs_fnames) %>%
-    sub("/results.xprs", "", .) %>%
+```{r}
+sample_names <- sub(file.path(base_dir, "experiment/[a-z]+/"), "", xprs_fnames) %>%
+    sub("xprs_out/results.xprs", "", .) %>%
     gsub("/", "", .)
+sample_names
 ```
 
 Assuming you label your replicates according to the condition they are a part
 of, you can also infer condition names:
 
-```{r eval=FALSE}
+```{r}
 condition_names <- sub("[0-9]+", "", sample_names)
+condition_names
 ```
 
 You now have:
@@ -244,21 +330,33 @@ You now have:
 
 We can now load all the eXpress data into R:
 
-```{r eval=FALSE}
+```{r}
 xprs <- read_express(xprs_fnames, sample_names, condition_names)
 ```
 
 This results in a named list with the following members:
 
-```{r eval=FALSE}
+```{r}
 names(xprs)
+```
+
+We only need one other file, `intron_to_transcripts.txt`, which was created
+during the pre-processing step. We can read that in using `read.table` or
+`data.table::fread` which is much faster, just be sure to use the `data.table
+= FALSE` flag as seen below:
+
+```{r}
+intron_to_trans <- data.table::fread(file.path(base_dir, "kma_pre-process_out",
+    "intron_to_transcripts.txt"), data.table = FALSE)
+head(intron_to_trans)
 ```
 
 To create an `IntronRetention` object, you can call `newIntronRetention` with
 the following command:
 
-```{r eval=FALSE}
-ir <- newIntronRetention(xprs$tpm, i2t, xprs$condition, xprs$uniq_counts)
+```{r}
+debugonce(newIntronRetention)
+ir <- newIntronRetention(xprs$tpm, intron_to_trans, xprs$condition, xprs$uniq_counts)
 ```
 
 ### Filtering

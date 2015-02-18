@@ -99,12 +99,12 @@ newIntronRetention <- function(targetExpression,
         inner_join(targetExpression, by = c("intron_extension" = "target_id")) %>%
         arrange(intron_extension)
 
-    denomExp <- as.data.frame(denomExp) %>%
+    denomExp <- as.data.frame(denomExp, stringsAsFactors = FALSE) %>%
         arrange(intron)
     rownames(denomExp) <- denomExp$intron
     denomExp <- select(denomExp, -c(intron, intron_extension))
 
-    numExp <- as.data.frame(numExp) %>%
+    numExp <- as.data.frame(numExp, stringsAsFactors = FALSE) %>%
         arrange(intron)
     rownames(numExp) <- numExp$intron
     numExp <- select(numExp, -c(intron, intron_extension))
@@ -248,4 +248,21 @@ check_groupings <- function(dat, valid_groups = c("intron", "condition"))
     }
 
     dat
+}
+
+#' Print an IntronRetention object
+#'
+#' Print an IntronRetention object
+#' @param ir an IntronRetention object
+#' @return the unchanged object \code{ir} after printing a summary to the
+#' terminal
+#' @export
+print.IntronRetention <- function(ir)
+{
+    cat(sprintf("IntronRetention object (%d introns)\n",
+            nrow(ir$retention)))
+    cat("----------------------------------------------\n")
+    cat("Samples:\t", paste(ir$labels, collapse = " "), "\n", sep = "")
+    cat("Conditions:\t", paste(ir$groups, collapse = " "), "\n", sep = "")
+    invisible(ir)
 }

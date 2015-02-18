@@ -1,7 +1,6 @@
 Package: kma
 Type: Package
-Title: KeepMeAround: Determine whether introns are being kept around in RNA-Seq
-    data.
+Title: KeepMeAround: Intron Retention Detection in RNA-Seq data
 Version: 0.1.0
 Date: 2014-08-12
 Author: Harold Pimentel
