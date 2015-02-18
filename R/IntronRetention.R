@@ -78,7 +78,8 @@ newIntronRetention <- function(targetExpression,
 
         unique_counts_tbl <- unique_counts_tbl %>%
             inner_join(intron_targ_tbl, by = c("target_id")) %>%
-            select(-c(target_id))
+            select(-c(target_id)) %>%
+            mutate(sample = as.character(sample))
     }
 
 
@@ -160,20 +161,22 @@ melt_retention <- function(ret, num, denom, groupings)
 
     ret <- ret %>% mutate(intron = rownames(ret))
 
-    ret <- melt(ret, id.vars = "intron",
+    ret <- reshape2::melt(ret, id.vars = "intron",
         variable.name = "sample",
-        value.name = "retention")
-
+        value.name = "retention", stringsAsFactors = FALSE) %>%
+        mutate(sample = as.character(sample))
 
     denom <- denom %>% mutate(intron = rownames(denom))
-    denom <- melt(denom, id.vars = "intron",
+    denom <- reshape2::melt(denom, id.vars = "intron",
         variable.name = "sample",
-        value.name = "denominator")
+        value.name = "denominator") %>%
+        mutate(sample = as.character(sample))
 
     num <- num %>% mutate(intron = rownames(num))
     num <- melt(num, id.vars = "intron",
         variable.name = "sample",
-        value.name = "numerator")
+        value.name = "numerator") %>%
+        mutate(sample = as.character(sample))
 
     m_res <- inner_join(num, denom, by = c("intron", "sample")) %>%
         inner_join(ret, by = c("intron", "sample"))

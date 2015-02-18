@@ -355,9 +355,16 @@ To create an `IntronRetention` object, you can call `newIntronRetention` with
 the following command:
 
 ```{r}
-debugonce(newIntronRetention)
-ir <- newIntronRetention(xprs$tpm, intron_to_trans, xprs$condition, xprs$uniq_counts)
+ir <- newIntronRetention(xprs$tpm, intron_to_trans, xprs$condition,
+    xprs$uniq_counts)
 ```
+
+Printing the `IntronRetention` object results in a short summary:
+
+```{r}
+print(ir)
+```
+
 
 ### Filtering
 
