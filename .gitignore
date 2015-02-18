@@ -1,9 +1,6 @@
 # Mac
 *.DS_Store
 
-# R package
-inst/doc
-
 # Python
 *.pyc
 
