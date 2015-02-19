@@ -270,18 +270,6 @@ intron_pval <- function(mean_val, null_ecdf)
     1 - null_ecdf(mean_val)
 }
 
-check_groupings <- function(dat, valid_groups = c("intron", "condition"))
-{
-    grouping_valid <- identical(sort(as.character(groups(dat))),
-        sort(valid_groups))
-
-    if (!grouping) {
-        # TODO: group them!
-    }
-
-    dat
-}
-
 #' Print an IntronRetention object
 #'
 #' Print an IntronRetention object

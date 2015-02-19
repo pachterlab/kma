@@ -2,6 +2,7 @@
 
 S3method(print,IntronRetention)
 export(aggregate_filters)
+export(check_groupings)
 export(filter_low_frags)
 export(filter_low_tpm)
 export(filter_perfect_psi)

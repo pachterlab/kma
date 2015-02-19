@@ -22,6 +22,8 @@
 filter_low_tpm <- function(obj, tpm, filter_name = paste0("f_low_tpm_", round(tpm, 2)))
 {
     # TODO: check if grouping exists
+    obj$flat <- check_groupings(obj$flat, c("intron", "condition"))
+
     obj$flat <- obj$flat %>%
         mutate_(.dots = setNames(list(~all((denominator - numerator) >= tpm)),
                 c(filter_name)))
@@ -38,7 +40,7 @@ filter_low_tpm <- function(obj, tpm, filter_name = paste0("f_low_tpm_", round(tp
 filter_perfect_psi <- function(obj, digits = 5, filter_name = "f_perf_psi")
 {
     # TODO: check if psi is actually calculated
-    # TODO: check if grouping exists
+    obj$flat <- check_groupings(obj$flat, c("intron", "condition"))
 
     obj$flat <- obj$flat %>%
         mutate(round_ret = round(retention, digits)) %>%
@@ -78,6 +80,8 @@ filter_low_frags <- function(obj, min_frags,
 
 
     # require grouping by intron, condition
+    obj$flat <- check_groupings(obj$flat, c("intron", "condition"))
+
     obj$flat <- obj$flat %>%
         mutate_(.dots = setNames(list(~all(unique_counts >= min_frags)),
                 c(filter_name)))

@@ -42,8 +42,8 @@ retention_test <- function(obj, filtered_df = NULL, n_samp = 10000)
     }
 
     cat("joining filtered data set\n")
-    tmp_df <- inner_join(obj$flat,
-        select(filtered_df, intron, condition, f_all),
+    tmp_df <- inner_join(data.table(obj$flat),
+        data.table(select(filtered_df, intron, condition, f_all)),
             by = c("intron", "condition"))
 
     stopifnot(nrow(tmp_df) == nrow(obj$flat))
@@ -51,6 +51,8 @@ retention_test <- function(obj, filtered_df = NULL, n_samp = 10000)
     tmp_df <- tmp_df %>%
         filter(f_all)
 
+    tmp_df <- as.data.frame(tmp_df, stringsAsFactors = FALSE)
+    cat("estimating the null for each condition\n")
     null_dists <- tmp_df %>%
         group_by(condition) %>%
         do({
@@ -64,11 +66,11 @@ retention_test <- function(obj, filtered_df = NULL, n_samp = 10000)
 
     cat("computing p-values\n")
 
-    tmp_df %>%
+    data.table(tmp_df) %>%
         group_by(intron, condition) %>%
         summarise(mean_retention = mean(retention),
             var_retention = var(retention)) %>%
-        inner_join(null_dists, by = "condition") %>%
+        inner_join(data.table(null_dists), by = "condition") %>%
         mutate(pvalue = intron_pval(mean_retention, ecdf[[1]])) %>%
         select(-c(ecdf)) %>%
         ungroup() %>%

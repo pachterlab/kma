@@ -122,10 +122,12 @@ summarize_zero_coverage <- function(ir, zc, prop_length = 0.20, level = 0.05)
 
     # TODO: accept prop_length as a vector and return several different
     # filter in one call
-    zc <- inner_join(zc, ir$intron_to_extension, by = "intron_extension")
+    zc <- inner_join(data.table(zc), data.table(ir$intron_to_extension),
+        by = "intron_extension")
 
     filter_name <- paste0("f_zc_", prop_length)
 
+    cat("Summarize zero coverage across introns and conditions\n")
     zc <- zc %>%
         group_by(intron, condition) %>%
         summarise_(.dots = setNames(
@@ -133,10 +135,12 @@ summarize_zero_coverage <- function(ir, zc, prop_length = 0.20, level = 0.05)
                         zc_len < (prop_length * extension_len))),
                     c(filter_name)))
 
-    ir$flat <- ir$flat %>%
-        left_join(zc, by = c("intron", "condition")) %>%
+    cat("Join IntronRetention and zero coverage\n")
+    ir$flat <- data.table(ir$flat) %>%
+        left_join(data.table(zc), by = c("intron", "condition")) %>%
         ungroup()
 
+    ir$flat <- as.data.frame(ir$flat, stringsAsFactors = FALSE)
     ir$flat[filter_name] <- replace(ir$flat[filter_name],
         is.na(ir$flat[filter_name]), TRUE)
 

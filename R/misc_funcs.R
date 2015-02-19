@@ -43,3 +43,26 @@ melt_intron_coords <- function(introns)
     res <- rbind_all(coords_list)
     mutate(res, intron = introns)
 }
+
+
+#' Check groupings in data.frame
+#'
+#' Check if data.frame is grouped. If it isn't, group and return grouped
+#' data.frame
+#' @param dat a \code{data.frame} (or derived class)
+#' @param valid_groups a character string of groups to group_by
+#' @return \code{dat} grouped by valid_groups. Internally groups using
+#' \link{\code{dplyr::group_by}}
+#' @export
+check_groupings <- function(dat, valid_groups = c("intron", "condition"))
+{
+    grouping_valid <- identical(sort(as.character(groups(dat))),
+        sort(valid_groups))
+
+    if (!grouping_valid) {
+        cat("Not grouped. Grouping.\n")
+        dat <- group_by_(dat, .dots = valid_groups)
+    }
+
+    dat
+}
