@@ -10,7 +10,7 @@
 
 <meta name="author" content="Harold Pimentel" />
 
-<meta name="date" content="2015-02-17" />
+<meta name="date" content="2015-02-20" />
 
 <title>Computing Intron Retention With KeepMeAround (kma)</title>
 
@@ -64,7 +64,7 @@ img {
 <div id="header">
 <h1 class="title">Computing Intron Retention With KeepMeAround (<code>kma</code>)</h1>
 <h4 class="author"><em>Harold Pimentel</em></h4>
-<h4 class="date"><em>2015-02-17</em></h4>
+<h4 class="date"><em>2015-02-20</em></h4>
 </div>
 
 <div id="TOC">
@@ -163,7 +163,7 @@ img {
 <ul>
 <li><code>--genome seq.fa</code>: <strong>genome sequence</strong> in <a href="http://en.wikipedia.org/wiki/FASTA_format">Multi-FASTA format</a> where contig names correspond to the GTF file.</li>
 <li><code>--gtf trans.gtf</code>: <strong>annotation file</strong> in <a href="http://www.ensembl.org/info/website/upload/gff.html">GTF format</a>.</li>
-<li><code>--extend N</code>: Optional. If set, <code>N</code> is the number of bases bases to overlap into the intron. Note, this should be at most <code>read_length - 1</code>.</li>
+<li><code>--extend N</code>: Optional. If set, <code>N</code> is the number of bases bases to overlap into the intron. Note, this should be at most <code>read_length - 1</code>, but we suggest making it smaller.</li>
 <li><code>--out out_dir</code>: A directory to write the outputs. Will be created if doesn’t already exist.</li>
 </ul>
 <p>The following outputs will then be put in <code>out_dir</code>:</p>
@@ -175,7 +175,7 @@ img {
 </div>
 <div id="quantification" class="section level2">
 <h2><span class="header-section-number">1.4</span> Quantification</h2>
-<p><strong>Note</strong>: Technically any quantification tool can be used with <code>kma_ir</code>, but currently only support with <code>eXpress</code> is implemented. Please contact me if you’re interested in a quantification tool being supported.</p>
+<p><strong>Note</strong>: Technically any quantification tool can be used with <code>kma</code>, but currently only support with <code>eXpress</code> is implemented. Please contact me if you’re interested in a quantification tool being supported.</p>
 <p>Here, we will discuss quantification. After <code>generate_introns.py</code> is run, <code>introns.fa</code> should be combined with the full transcript sequences. This can be done using the Linux command <code>cat</code>:</p>
 <pre class="{bash}"><code>cat trans.fa introns.fa &gt; trans_and_introns.fa</code></pre>
 <p>We assume the file name is <code>trans_and_introns.fa</code> in the following sections, but the file name can be anything.</p>
@@ -213,22 +213,24 @@ img {
 <li><code>sample</code> - a character vector for each sample, describing the sample (e.g. <code>tumor_rep1</code>)</li>
 <li><code>condition</code> - a character vector for each sample describing the grouping (e.g. <code>tumor</code>)</li>
 </ul>
+<p>This data can then be used by <code>newIntronRetention</code>. An example of this can be seen in <a href="#post-processing">the worked example</a>.</p>
 </div>
 </div>
 <div id="a-worked-example" class="section level1">
 <h1><span class="header-section-number">2</span> A worked example</h1>
-<p>We will run through the example <strong>TODO</strong> put link here:</p>
-<p><strong>TODO: Put disclaimer that can skip pre-processing and go straight to results</strong>.</p>
+<p>We will run through a small example. The data set including reads <a href="http://math.mcb.berkeley.edu/~pimentel/kma/kma_example.tar.gz">can be found here</a>. If you are not interested in the pre-processing step (some might find it simple), the results from the pipeline exist in the R package:</p>
+<pre class="r"><code>system.file(&quot;example&quot;, package=&quot;kma&quot;)</code></pre>
+<p>In this case, you can simply jump to the post-processing step which runs through using the R package itself.</p>
 <p>This example contains the reads, annotation, and sequences for the SF3B1 gene in orthochromatic erythroblasts from <a href="http://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE53635">GSE53635</a>. This dataset is unrealistically small, so the results aren’t entirely reliable, but can be run very quickly through the pipeline. Thus, the results aren’t very reliable, but serves as an example of how to run through the pipeline.</p>
 <div id="pre-processing" class="section level2">
 <h2><span class="header-section-number">2.1</span> Pre-processing</h2>
-<p>Assuming you downloaded the data to <strong>…</strong></p>
 <p>Run <code>system.file</code> in <code>R</code> to get the pre-processing directory (see the pre-processing section above for more information):</p>
 <pre class="r"><code>system.file(&quot;pre-process&quot;, package = &quot;kma&quot;)</code></pre>
 <p>Then, store this value in an environment variable in your shell:</p>
 <pre><code>PRE=/path/to/kma/pre-process</code></pre>
-<p>Let’s move to the directory and run the pre-processing:</p>
-<pre><code>cd example
+<p>Extract the data from the downloaded archive and move to the example directory and run the pre-processing:</p>
+<pre><code>tar -xf kma_example.tar.gz
+cd kma_example/example
 python $PRE/generate_introns.py --genome genome/chr2.fa \
     --gtf annotation/refGene_sf3b1.gtf --extend 25 \
     --out kma_pre-process_out</code></pre>
@@ -321,8 +323,8 @@ head(intron_to_trans)</code></pre>
 ## computing numerator
 ## computing retention
 ## 'melting' expression
-## sorting and grouping by (intron, condition)
-## joining unique_counts and retention data</code></pre>
+## joining unique_counts and retention data
+## sorting and grouping by (intron, condition)</code></pre>
 <p>Printing the <code>IntronRetention</code> object results in a short summary:</p>
 <pre class="r"><code>print(ir)</code></pre>
 <pre><code>## IntronRetention object (25 introns)
@@ -332,14 +334,15 @@ head(intron_to_trans)</code></pre>
 </div>
 <div id="filtering" class="section level3">
 <h3><span class="header-section-number">2.3.2</span> Filtering</h3>
-<p>Filter functions have the following format: <code>filter_name(ir, options)</code> where <code>ir</code> is an <code>IntronRetention</code> object, and options are options for the filter. They return a <code>IntronRetention</code> object with an updated <code>flat</code> member. Filters can be implemented by the user, but should return <code>TRUE</code> if the intron passes the filter and <code>FALSE</code> otherwise. The column name for each filter should begin with <code>f_</code>.</p>
+<p>Filter functions have the following format: <code>filter_name(ir, options)</code> where <code>ir</code> is an <code>IntronRetention</code> object, and options are options for the filter. They return an <code>IntronRetention</code> object with an updated <code>flat</code> member. Filters can be implemented by the user, but should return <code>TRUE</code> if the intron passes the filter and <code>FALSE</code> otherwise. The column name for each filter should begin with <code>f_</code>.</p>
 <p>This example filters out denominators that are below 1 TPM, introns that have exactly 0 or 1 PSI (due to either no contributions from the intron coverage or solely coverage from the intron). <code>filter_low_frags</code> filters out introns that don’t have <code>N</code> number of unique reads:</p>
 <pre class="r"><code>ir &lt;- ir %&gt;%
     filter_low_tpm(1) %&gt;%
     filter_perfect_psi() %&gt;%
-    filter_low_frags(3)
-colnames(ir$flat)</code></pre>
-<pre><code>##  [1] &quot;intron&quot;        &quot;sample&quot;        &quot;numerator&quot;     &quot;denominator&quot;  
+    filter_low_frags(3)</code></pre>
+<pre><code>## Not grouped. Grouping.</code></pre>
+<pre class="r"><code>colnames(ir$flat)</code></pre>
+<pre><code>##  [1] &quot;sample&quot;        &quot;intron&quot;        &quot;numerator&quot;     &quot;denominator&quot;  
 ##  [5] &quot;retention&quot;     &quot;condition&quot;     &quot;unique_counts&quot; &quot;f_low_tpm_1&quot;  
 ##  [9] &quot;f_perf_psi&quot;    &quot;f_low_count_3&quot;</code></pre>
 <div id="zero-coverage" class="section level4">
@@ -368,41 +371,47 @@ head(all_zc)</code></pre>
 ## Variables not shown: condition (chr)</code></pre>
 <p>The result from <code>get_batch_intron_zc</code> is a <code>data.frame</code> that can be inspected manually if you’d like. To incorporate it to <code>kma</code>, use <code>summarize_zero_coverage</code>:</p>
 <pre class="r"><code>ir &lt;- summarize_zero_coverage(ir, all_zc)</code></pre>
+<pre><code>## Summarize zero coverage across introns and conditions
+## Join IntronRetention and zero coverage</code></pre>
 <p>This adds a new column to <code>ir$flat</code> called <code>f_zc_*</code>:</p>
 <pre class="r"><code>colnames(ir$flat)</code></pre>
-<pre><code>##  [1] &quot;intron&quot;        &quot;sample&quot;        &quot;numerator&quot;     &quot;denominator&quot;  
-##  [5] &quot;retention&quot;     &quot;condition&quot;     &quot;unique_counts&quot; &quot;f_low_tpm_1&quot;  
+<pre><code>##  [1] &quot;intron&quot;        &quot;condition&quot;     &quot;sample&quot;        &quot;numerator&quot;    
+##  [5] &quot;denominator&quot;   &quot;retention&quot;     &quot;unique_counts&quot; &quot;f_low_tpm_1&quot;  
 ##  [9] &quot;f_perf_psi&quot;    &quot;f_low_count_3&quot; &quot;f_zc_0.2&quot;</code></pre>
 </div>
 </div>
 <div id="hypothesis-testing" class="section level3">
 <h3><span class="header-section-number">2.3.3</span> Hypothesis testing</h3>
 <p>Hypothesis testing first aggregates all filters (by taking the intersection of all filters), computes the null distribution, then returns a data frame summarizing the test:</p>
-<pre class="r"><code>ir_test &lt;- retention_test(ir)</code></pre>
+<pre class="r"><code>set.seed(42)
+ir_test &lt;- retention_test(ir)</code></pre>
 <pre><code>## aggregating filters
 ## joining filtered data set
+## estimating the null for each condition
 ## computing p-values</code></pre>
 <pre class="r"><code>head(ir_test)</code></pre>
-<pre><code>## Source: local data frame [6 x 6]
-## Groups: condition
-## 
-##                     intron condition mean_retention var_retention pvalue
-## 1 chr2:198257912-198260779     ortho    0.042944402  1.051855e-04 0.5898
-## 2 chr2:198263305-198264778     ortho    0.008521050  1.725107e-05 0.9801
-## 3 chr2:198267759-198268308     ortho    0.003581595  1.310575e-06 0.9982
-## 4 chr2:198274731-198281464     ortho    0.050106833  2.162046e-04 0.5544
-## 5 chr2:198283312-198283520     ortho    0.410303948  1.938278e-02 0.0000
-## 6 chr2:198283675-198285151     ortho    0.202623085  5.853153e-03 0.0915
-## Variables not shown: qvalue (dbl)</code></pre>
+<pre><code>##   condition                   intron mean_retention var_retention pvalue
+## 1     ortho chr2:198257912-198260779    0.042944402  1.051855e-04 0.5877
+## 2     ortho chr2:198263305-198264778    0.008521050  1.725107e-05 0.9791
+## 3     ortho chr2:198267759-198268308    0.003581595  1.310575e-06 0.9973
+## 4     ortho chr2:198274731-198281464    0.050106833  2.162046e-04 0.5532
+## 5     ortho chr2:198283312-198283520    0.410303948  1.938278e-02 0.0000
+## 6     ortho chr2:198283675-198285151    0.202623085  5.853153e-03 0.0919
+##   qvalue
+## 1 0.9973
+## 2 0.9973
+## 3 0.9973
+## 4 0.9973
+## 5 0.0000
+## 6 0.3676</code></pre>
 <p>Significant introns can be found using the dplyr function <code>filter</code>:</p>
 <pre class="r"><code>ir_test %&gt;%
     filter(qvalue &lt;= 0.10) %&gt;%
     select(-c(pvalue))</code></pre>
-<pre><code>## Source: local data frame [1 x 5]
-## Groups: condition
+<pre><code>## Source: local data table [1 x 5]
 ## 
-##                     intron condition mean_retention var_retention qvalue
-## 1 chr2:198283312-198283520     ortho      0.4103039    0.01938278      0</code></pre>
+##   condition                   intron mean_retention var_retention qvalue
+## 1     ortho chr2:198283312-198283520      0.4103039    0.01938278      0</code></pre>
 <p>In this case we only see one significant intron. Since we have such a small dataset, the null distribution isn’t that reliable so the results shouldn’t be taken too seriously, but when the data set is larger (like in a normal experiment), the results are more reliable.</p>
 </div>
 </div>

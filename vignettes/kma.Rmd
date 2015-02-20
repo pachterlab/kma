@@ -122,7 +122,8 @@ With the inputs being:
 - `--gtf trans.gtf`: **annotation file** in [GTF
   format](http://www.ensembl.org/info/website/upload/gff.html).
 - `--extend N`: Optional. If set, `N` is the number of bases bases to overlap
-  into the intron. Note, this should be at most `read_length - 1`.
+  into the intron. Note, this should be at most `read_length - 1`, but we
+  suggest making it smaller.
 - `--out out_dir`: A directory to write the outputs. Will be created if doesn't
   already exist.
 
@@ -134,9 +135,9 @@ The following outputs will then be put in `out_dir`:
 
 ## Quantification
 
-**Note**: Technically any quantification tool can be used with `kma_ir`, but currently
-only support with `eXpress` is implemented. Please contact me if you're
-interested in a quantification tool being supported.
+**Note**: Technically any quantification tool can be used with `kma`, but
+currently only support with `eXpress` is implemented. Please contact me if
+you're interested in a quantification tool being supported.
 
 Here, we will discuss quantification. After `generate_introns.py` is run,
 `introns.fa` should be combined with the full transcript sequences. This can be
@@ -202,12 +203,22 @@ The first step is to the load the quantification data into `R`. The function
 - `condition` - a character vector for each sample describing the grouping
   (e.g. `tumor`)
 
+This data can then be used by `newIntronRetention`. An example of this can be
+seen in [the worked example](#post-processing).
+
 # A worked example
 
-We will run through the example **TODO** put link here:
+We will run through a small example. The data set including reads [can be found
+here](http://math.mcb.berkeley.edu/~pimentel/kma/kma_example.tar.gz). If you
+are not interested in the pre-processing step (some might find it simple), the
+results from the pipeline exist in the R package:
 
-**TODO: Put disclaimer that can skip pre-processing and go straight to
-results**.
+```{r eval=FALSE}
+system.file("example", package="kma")
+```
+
+In this case, you can simply jump to the post-processing step which runs
+through using the R package itself.
 
 This example contains the reads, annotation, and sequences for the SF3B1 gene
 in orthochromatic erythroblasts from
@@ -217,8 +228,6 @@ can be run very quickly through the pipeline. Thus, the results aren't very
 reliable, but serves as an example of how to run through the pipeline.
 
 ## Pre-processing
-
-Assuming you downloaded the data to __...__
 
 Run `system.file` in `R` to get the pre-processing directory (see the
 pre-processing section above for more information):
@@ -234,10 +243,11 @@ Then, store this value in an environment variable in your shell:
 PRE=/path/to/kma/pre-process
 ```
 
-Let's move to the directory and run the pre-processing:
+Extract the data from the downloaded archive and move to the example directory and run the pre-processing:
 
 ```
-cd example
+tar -xf kma_example.tar.gz
+cd kma_example/example
 python $PRE/generate_introns.py --genome genome/chr2.fa \
     --gtf annotation/refGene_sf3b1.gtf --extend 25 \
     --out kma_pre-process_out
@@ -387,7 +397,7 @@ print(ir)
 
 Filter functions have the following format: `filter_name(ir, options)` where
 `ir` is an `IntronRetention` object, and options are options for the filter.
-They return a `IntronRetention` object with an updated `flat` member. Filters
+They return an `IntronRetention` object with an updated `flat` member. Filters
 can be implemented by the user, but should return `TRUE` if the intron passes
 the filter and `FALSE` otherwise. The column name for each filter should begin
 with `f_`.
@@ -446,11 +456,15 @@ colnames(ir$flat)
 
 ### Hypothesis testing
 
+[id]: http://example.com/ "Title"
+
+
 Hypothesis testing first aggregates all filters (by taking the intersection of
 all filters), computes the null distribution, then returns a data frame
 summarizing the test:
 
 ```{r}
+set.seed(42)
 ir_test <- retention_test(ir)
 head(ir_test)
 ```

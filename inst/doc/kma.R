@@ -4,6 +4,9 @@ system.file("pre-process", package="kma")
 ## ----, eval=FALSE--------------------------------------------------------
 #  devtools::install_github("http://github.com/pachterlab/kma")
 
+## ----eval=FALSE----------------------------------------------------------
+#  system.file("example", package="kma")
+
 ## ----, eval=FALSE--------------------------------------------------------
 #  system.file("pre-process", package = "kma")
 #  
@@ -64,6 +67,7 @@ ir <- summarize_zero_coverage(ir, all_zc)
 colnames(ir$flat)
 
 ## ------------------------------------------------------------------------
+set.seed(42)
 ir_test <- retention_test(ir)
 head(ir_test)
 
