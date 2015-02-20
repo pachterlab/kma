@@ -73,8 +73,7 @@ filter_low_frags <- function(obj, min_frags,
     filter_name = paste0("f_low_count_", min_frags))
 {
     # TODO: can refactor this into an independent calculation
-    if (is.null(obj$unique_counts))
-    {
+    if (is.null(obj$unique_counts)) {
         stop("Please recreate the retention object with unique counts")
     }
 
