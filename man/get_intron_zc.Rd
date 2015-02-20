@@ -4,13 +4,11 @@
 \alias{get_intron_zc}
 \title{Read zero coverage data}
 \usage{
-get_intron_zc(fname, exp_name, regex = "^chr", adjust_method = "bonferroni",
-  rename_target_id = TRUE)
+get_intron_zc(fname, sample_name, regex = "^chr",
+  adjust_method = "bonferroni", rename_target_id = TRUE)
 }
 \arguments{
 \item{fname}{a character vector of length one containing the file name}
-
-\item{exp_name}{a character containing the name of the experiment}
 
 \item{regex}{a regular expression to filter from. For intron retention, you
 usually want to only get the introns. If you want to get everything back,
@@ -19,11 +17,13 @@ use the regex \code{"*"}.}
 \item{adjust_method}{the method to use for multiple testing}
 
 \item{rename_target_id}{if TRUE, rename 'target_id' to 'intron_extension'}
+
+\item{exp_name}{a character containing the name of the experiment}
 }
 \value{
 a data.frame with columns:
 \describe{
- \item{\code{target_id}}{the target name}
+ \item{\code{intron_extension}}{the intron_extension coordinates}
  \item{\code{len}}{the length of the target}
  \item{\code{zc_len}}{the length of the region with zero coverage}
  \item{zc_pval}{the raw p-value under the Poisson model}

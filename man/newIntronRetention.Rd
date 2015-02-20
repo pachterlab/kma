@@ -4,7 +4,8 @@
 \alias{newIntronRetention}
 \title{Compute intron retention}
 \usage{
-newIntronRetention(targetExpression, intronToUnion, groups, psi = TRUE)
+newIntronRetention(targetExpression, intronToUnion, groups,
+  unique_counts = NULL, psi = TRUE)
 }
 \arguments{
 \item{targetExpression}{a matrix of nothing but expression values and one

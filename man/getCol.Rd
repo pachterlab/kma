@@ -4,14 +4,14 @@
 \alias{getCol}
 \title{Get the columns from eXpress output}
 \usage{
-getCol(aList, col, subStringReplace = NULL)
+getCol(aList, col, column_ids, substring_replace = NULL)
 }
 \arguments{
 \item{aList}{a list of xprs data.frames}
 
 \item{col}{the column you wish to extract}
 
-\item{subStringReplace}{replace this substring from the target_id}
+\item{substring_replace}{replace this substring from the target_id}
 }
 \value{
 a data.frame with the particular column from express output

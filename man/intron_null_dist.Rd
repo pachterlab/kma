@@ -4,10 +4,14 @@
 \alias{intron_null_dist}
 \title{Generate the null distribution}
 \usage{
-intron_null_dist(grouped_df, n_samp = 10000, test_stat = mean)
+intron_null_dist(flat_grouped, n_samp = 10000, test_stat = mean)
 }
 \arguments{
-\item{grouped_df}{}
+\item{flat_grouped}{}
+
+\item{n_samp}{number of samples}
+
+\item{test_stat}{test statistic to use (function)}
 }
 \value{
 a numeric with means

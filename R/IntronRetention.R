@@ -1,19 +1,20 @@
-#' Class IntronRetention
-#'
-#' Class \code{IntronRentention}.
-#'
-#' @name IntronRetention-class
-#' @rdname IntronRetention-class
-#' @aliases IntronRetention-class
-#' @export
-setClass("IntronRetention",
-         slots = list(retention = "data.frame",
-                      numerator = "data.frame",
-                      denominator = "data.frame",
-                      labels = "character",
-                      groups = "factor",
-                      features = "data.frame",
-                      validIntrons = "data.frame"))
+# Keep Me Around: Intron Retention Detection
+# Copyright (C) 2015  Harold Pimentel <haroldpimentel@gmail.com>
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; either version 2
+# of the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+
 
 # TODO: update docs below...
 
@@ -35,30 +36,61 @@ setClass("IntronRetention",
 #' @param psi if TRUE, compute the psi value. otherwise, compute a rate
 #' @return an IntronRetention object
 #' @export
-newIntronRetention <- function(targetExpression, intronToUnion, groups, psi = TRUE)
+newIntronRetention <- function(targetExpression,
+    intronToUnion,
+    groups,
+    unique_counts = NULL,
+    psi = TRUE)
 {
-    targetExpression <- as.data.frame(targetExpression, stringsAsFactors = F)
-    intronToUnion <- as.data.frame(intronToUnion, stringsAsFactors = F)
-
     # TODO: verify all 'introns' are in targetExpression and all target_ids in
     # targetExpression
     labs <- setdiff(colnames(targetExpression), 'target_id')
 
-    if (length(groups) != length(labs))
+    if (length(groups) != length(labs)) {
         stop("length(groups) must be the same as the number of experiments included (and also in the same order)")
+    }
 
-    if (psi)
-    {
-        # XXX: this is to add introns in the denom
-        # repIntrons <- data_frame(intron = unique(intronToUnion$intron),
-        #     target_id = unique(intronToUnion$intron))
+    # targetExpression <- data.table(targetExpression)
+    # intronToUnion <- data.table(intronToUnion)
+    targetExpression <- targetExpression %>%
+        arrange(target_id)
+
+    intronToUnion <- intronToUnion %>%
+        arrange(target_id)
+
+
+    if (psi) {
         repIntrons <- intronToUnion %>%
             select(intron, gene, intron_extension) %>%
             distinct() %>%
             mutate(target_id = intron_extension)
-        intronToUnion <- rbind_list(intronToUnion, repIntrons)
+        intronToUnion <- data.table(rbind_list(intronToUnion, repIntrons))
     }
 
+    unique_counts_tbl <- NULL
+
+    if (!is.null(unique_counts)) {
+        # TODO: verify column names are exactly the same as in targ_expression
+        cat("'melting' unique counts\n")
+        intron_targ_tbl <- intronToUnion %>%
+            select(intron, intron_extension) %>%
+            distinct() %>%
+            rename(target_id = intron_extension)
+        unique_counts_tbl <- melt(unique_counts, id.vars = "target_id",
+            variable.name = "sample",
+            value.name = "unique_counts")
+
+        # return(list(unique_counts = unique_counts_tbl, intron_targ = intron_targ_tbl))
+        unique_counts_tbl <- data.table(unique_counts_tbl) %>%
+            inner_join(data.table(intron_targ_tbl), by = c("target_id")) %>%
+            select(-c(target_id)) # %>%
+            # mutate(sample = as.character(sample))
+    }
+
+
+    cat("computing denominator\n")
+    intronToUnion <- data.table(intronToUnion)
+    targetExpression <- data.table(targetExpression)
     denomExp <- left_join(intronToUnion, targetExpression, by = "target_id") %>%
         group_by(intron) %>%
         select(-(target_id)) %>%
@@ -70,9 +102,17 @@ newIntronRetention <- function(targetExpression, intronToUnion, groups, psi = TR
                 distinct(),
             by = c("intron"))
 
+    tmp_targExpression <- targetExpression %>%
+        rename("intron_extension" = target_id) %>%
+        data.table()
+
+    denomExp <- data.table(denomExp)
+    cat("computing numerator\n")
     numExp <- select(denomExp, intron, intron_extension) %>%
-        inner_join(targetExpression, by = c("intron_extension" = "target_id")) %>%
+        # inner_join(targetExpression, by = c("intron_extension" = "target_id")) %>%
+        inner_join(tmp_targExpression, by = c("intron_extension")) %>%
         arrange(intron_extension)
+    rm(tmp_targExpression)
 
     denomExp <- as.data.frame(denomExp) %>%
         arrange(intron)
@@ -84,195 +124,105 @@ newIntronRetention <- function(targetExpression, intronToUnion, groups, psi = TR
     rownames(numExp) <- numExp$intron
     numExp <- select(numExp, -c(intron, intron_extension))
 
+    cat("computing retention\n")
     retentionExp <- numExp / denomExp
 
     rownames(targetExpression) <- targetExpression$target_id
     targetExpression$target_id <- NULL
 
-    nGroups <- length(unique(groups))
+    # TODO: include intron_extension in flat
+    cat("'melting' expression\n")
+    flat <- melt_retention(retentionExp, numExp, denomExp, groups)
 
-    validIntrons <- data.frame(
-        matrix(rep(TRUE, nrow(retentionExp) * nGroups),
-            ncol = nGroups))
-    colnames(validIntrons) <- unique(groups)
+    flat <- data.table(flat)
 
-    new("IntronRetention",
-        retention = retentionExp,
-        numerator = numExp,
-        denominator = denomExp,
-        labels = labs,
-        groups = groups,
-        features = targetExpression,
-        validIntrons = validIntrons
-        )
+    if (!is.null(unique_counts)) {
+        cat("joining unique_counts and retention data\n")
+        flat <- flat %>%
+            inner_join(unique_counts_tbl, by = c("intron", "sample"))
+    }
+
+    cat("sorting and grouping by (intron, condition)\n")
+    flat <- flat %>%
+        arrange(intron, condition) %>%
+        group_by(intron, condition)
+
+
+    intron_to_ext <- intronToUnion %>%
+        select(intron, intron_extension) %>%
+        distinct() %>%
+        mutate(extension_len = intron_length(intron_extension))
+
+    intron_to_gene <- intronToUnion %>%
+        select(intron, gene) %>%
+        distinct() %>%
+        data.table()
+
+    intron_to_ext <- intron_to_ext %>%
+        left_join(intron_to_gene, by = c("intron"))
+
+    # TODO: add a list "filters" which keeps track of all the filters and their
+    # calls
+    retentionExp <- as.data.frame(retentionExp, stringsAsFactors = FALSE)
+    numExp <- as.data.frame(numExp, stringsAsFactors = FALSE)
+    denomExp <- as.data.frame(denomExp, stringsAsFactors = FALSE)
+    targetExpression <- as.data.frame(targetExpression, stringsAsFactors = FALSE)
+    flat <- as.data.frame(flat, stringsAsFactors = FALSE)
+    intron_to_ext <- as.data.frame(intron_to_ext, stringsAsFactors = FALSE)
+    intronToUnion <- as.data.frame(intronToUnion, stringsAsFactors = FALSE)
+
+    structure(list(retention = retentionExp,
+            numerator = numExp,
+            denominator = denomExp,
+            labels = labs,
+            groups = groups,
+            features = targetExpression,
+            flat = flat,
+            unique_counts = unique_counts,
+            intron_to_extension = intron_to_ext,
+            intron_to_union = intronToUnion
+            ),
+        class = "IntronRetention")
 }
 
 #' @export
-melt_retention <- function(obj)
+melt_retention <- function(ret, num, denom, groupings)
 {
-    stopifnot(is(obj, "IntronRetention"))
+    samp_to_condition <- data.frame(sample = colnames(ret),
+        condition = groupings, stringsAsFactors = FALSE)
 
-    ret <- obj@retention
     ret <- ret %>% mutate(intron = rownames(ret))
 
-    ret <- melt(ret, id.vars = "intron",
+    ret <- reshape2::melt(ret, id.vars = "intron",
         variable.name = "sample",
-        value.name = "retention")
+        value.name = "retention") %>%
+        mutate(sample = as.character(sample))
 
-    samp_to_condition <- data.frame(sample = colnames(obj@retention),
-        condition = obj@groups, stringsAsFactors = F)
+    denom <- denom %>% mutate(intron = rownames(denom))
+    denom <- reshape2::melt(denom, id.vars = "intron",
+        variable.name = "sample",
+        value.name = "denominator") %>%
+        mutate(sample = as.character(sample))
 
-    left_join(ret, samp_to_condition, by = "sample")
+    num <- num %>% mutate(intron = rownames(num))
+    num <- melt(num, id.vars = "intron",
+        variable.name = "sample",
+        value.name = "numerator") %>%
+        mutate(sample = as.character(sample))
+
+    num <- data.table(num)
+    denom <- data.table(denom)
+    ret <- data.table(ret)
+
+    m_res <- inner_join(num, denom, by = c("intron", "sample"))
+    m_res <- m_res %>%
+        inner_join(ret, by = c("intron", "sample"))
+
+    samp_to_condition <- data.table(samp_to_condition)
+    m_res <- data.table(m_res)
+    left_join(m_res, samp_to_condition, by = "sample")
 }
 
-#' Filter low expression
-#'
-#' Filter out low expression features.
-#'
-#' @name lowExpressionFilter
-#' @param obj the type
-#' @param ... additional arguments
-#' @rdname lowExpressionFilter-methods
-#' @export lowExpressionFilter
-#' @examples
-#' lowExpressionFilter()
-setGeneric(
-    name = "lowExpressionFilter",
-    def = function(obj, ...)
-        standardGeneric("lowExpressionFilter"))
-
-setMethod("lowExpressionFilter", signature("IntronRetention"),
-    function(obj, lower = 0.25, ...)
-    {
-        curFilt <- complete.cases(obj@retention)
-
-        gtq <- apply(obj@denominator, 2,
-            function(col)
-            {
-                colGt0 <- col[col > 0]
-                # removing duplicates gives you more
-                colGt0 <- colGt0[!duplicated(colGt0)]
-                q <- quantile(colGt0, probs = lower)
-                col >= q
-            })
-
-        repGt <- lapply(unique(obj@groups), function(grp)
-            {
-                curGroups <- obj@groups %in% grp
-                apply(data.frame(gtq[,curGroups]), 1, all)
-            })
-        repGt <- do.call(cbind, repGt)
-        colnames(repGt) <- unique(obj@groups)
-
-        obj@validIntrons <- as.data.frame(repGt)
-
-        obj
-    })
-
-#' @export
-lowExpressionFilter_upd <- function(obj, lower = 0.25, ...)
-{
-    curFilt <- complete.cases(obj@retention)
-
-    denom_minus <- obj@denominator - obj@numerator
-
-    gtq <- apply(denom_minus, 2,
-        function(col)
-        {
-            colGt0 <- col[col > 0]
-            # removing duplicates gives you more
-            colGt0 <- colGt0[!duplicated(colGt0)]
-            q <- quantile(colGt0, probs = lower)
-            col >= q
-        })
-
-    repGt <- lapply(unique(obj@groups), function(grp)
-        {
-            curGroups <- obj@groups %in% grp
-            apply(data.frame(gtq[,curGroups]), 1, all)
-        })
-    repGt <- do.call(cbind, repGt)
-    colnames(repGt) <- unique(obj@groups)
-
-    obj@validIntrons <- as.data.frame(repGt)
-
-    obj
-}
-
-
-#' Single condition intron-retention test
-#'
-#' For a single condition, test whether or not the intron was retained
-#'
-#' @name retentionTest
-#' @param obj the object
-#' @param ... additional arguments
-#' @rdname retentionTest-methods
-#' @export retentionTest
-setGeneric(
-    name = "retentionTest",
-    def = function(obj, ...)
-        standardGeneric("retentionTest"))
-
-setMethod("retentionTest", signature("IntronRetention"),
-    function(obj, level = 0.5, conditions = c("all"), adjust = T)
-    {
-        if( sum(unique(obj@groups) %in% conditions) != length(conditions) &&
-            conditions != c('all') )
-            stop("Not all conditions were found in the original group
-                definition.")
-
-                if (conditions == 'all')
-                    conditions <- unique(obj@groups)
-
-                # bs <- bootstrapMean(obj)
-                retentionRes <- lapply(conditions, ret_test, obj, level, adjust)
-                rbind_all(retentionRes)
-    })
-
-
-        #' @export
-        ret_test <- function(cond, obj, level, adjust)
-        {
-            print(adjust)
-            whichSamp <- obj@groups %in% cond
-            valid <- obj@validIntrons[,cond]
-            bs <- bootstrapMean(obj)
-            if (adjust)
-            {
-                samp_bs_mean <- apply(bs[,whichSamp], 2, mean, na.rm = T)
-                bs_diff <- apply(obj@retention[valid,whichSamp], 2, mean) - samp_bs_mean
-                # obj@retention[valid,whichSamp] <- t(t(matrix(obj@retention[valid,whichSamp])) - samp_bs_mean)
-                # hello <- t(t(obj@retention[valid,whichSamp]) - bs_diff)
-                obj@retention[valid,whichSamp] <- sweep(obj@retention[valid,whichSamp], 2, bs_diff, "-")
-                # obj@retention[valid,whichSamp] <- t(apply(obj@retention[valid,whichSamp],
-                #         2, pmax, 0))
-                obj@retention[valid,whichSamp] <- t(apply(obj@retention[valid,whichSamp],
-                        2, pmax, 0))
-            }
-
-            retRes <- retentionTestSingleCond(obj@retention[, whichSamp], level)
-
-            testStat <- rep(NA, length(valid))
-            testStat[valid] <- retRes$testStat[valid]
-
-            retention <- retRes$avg
-            variance <- retRes$variance
-
-            # lretRes <- retentionTestSingleCond(log(obj@retention[, whichSamp]), level)
-
-            # log_retention <- lretRes$avg
-            # log_variance <- lretRes$variance
-
-            # data.frame(intron = rownames(obj@retention), condition = cond,
-            #     testStat = testStat, retention = retention,
-            #     variance = variance, log_retention = log_retention,
-            #     log_variance = log_variance, stringsAsFactors = F)
-
-            data.frame(intron = rownames(obj@retention), condition = cond,
-                testStat = testStat, retention = retention,
-                variance = variance, stringsAsFactors = F)
-        }
 
 #' @export
 retentionTestSingleCond <- function(retentionMat, level = 0.0, offset = 0.00)
@@ -283,176 +233,6 @@ retentionTestSingleCond <- function(retentionMat, level = 0.0, offset = 0.00)
     v <- v + offset
     testStat <- (m - level) / sqrt(v)
     list(avg = m, variance = v, testStat = testStat)
-}
-
-#' Get summary statistics for an IntronRetention object
-#'
-#' Get summary statistics for an IntronRetention object.
-#'
-#' @name summaryStats
-#' @param obj the object
-#' @param ... additional arguments
-#' @rdname summaryStats-methods
-#' @export summaryStats
-setGeneric(
-    name = "summaryStats",
-    def = function(obj, ...)
-        standardGeneric("summaryStats"))
-
-setMethod("summaryStats", signature("IntronRetention"),
-    function(obj, conditions = c("all"))
-    {
-        if( sum(unique(obj@groups) %in% conditions) != length(conditions) &&
-            conditions != c('all') )
-            stop("Not all conditions were found in the original group
-                definition.")
-
-        if (length(conditions) == 1 && conditions == 'all')
-            conditions <- unique(obj@groups)
-
-        allDenom <- getExpCondition(obj, "denominator", conditions)
-        allSummary <- mapply(function(cond, expDf)
-            {
-                m <- apply(expDf, 1, mean)
-                v <- apply(expDf, 1, var)
-                data.frame(intron = rownames(expDf), condition = cond, avg = m,
-                    variance = v, stringsAsFactors = F, row.names = NULL)
-            }, conditions, allDenom, SIMPLIFY = F)
-        print(head(allSummary))
-        as.data.frame(rbindlist(allSummary))
-    })
-
-
-#' Get experimental condition
-#'
-#' Get a filtered data.frame back when specifying a condition and slot
-#'
-#' @name getExpCondition
-#' @param obj the object
-#' @param ... additional arguments
-#' @rdname getExpCondition-methods
-#' @export getExpCondition
-setGeneric(
-    name = "getExpCondition",
-    def = function(obj, ...)
-        standardGeneric("getExpCondition"))
-
-
-setMethod("getExpCondition", signature("IntronRetention"),
-    function(obj, expType = "retention", conditions = c("all"))
-    {
-        stopifnot(expType %in% c("retention", "numerator", "denominator"))
-
-        if( sum(unique(obj@groups) %in% conditions) != length(conditions) &&
-            conditions != c('all') )
-            stop("Not all conditions were found in the original group
-                definition.")
-
-        if (length(conditions) == 1 && conditions == 'all')
-            conditions <- unique(obj@groups)
-
-        allExp <- slot(obj, expType)
-        lapply(conditions,
-            function(cond)
-            {
-                valid <- obj@validIntrons[,cond]
-                whichSamp <- obj@groups %in% cond
-                allExp[valid, whichSamp]
-            })
-    })
-
-
-#' @export
-setGeneric(
-    name = "bootstrapMean",
-    def = function(obj, ...)
-        standardGeneric("bootstrapMean"))
-
-setMethod("bootstrapMean", signature("IntronRetention"),
-    function(obj, nsamp = 2000)
-    {
-        denom <- obj@denominator - obj@numerator
-        valid <- obj@validIntrons[,1]
-        denom <- denom[valid,]
-        num <- obj@numerator[valid,]
-
-        denom_samp <- sample.int(nrow(denom), nsamp, replace = T)
-        num_samp <- sample.int(nrow(num), nsamp, replace = T)
-
-        num_mat <- num[num_samp,]
-        denom_mat <- denom[denom_samp,] + num_mat
-
-        num_mat / denom_mat
-    })
-
-#' @export
-lowTpmFilter <- function(obj, min_tpm)
-{
-    rep_filt <- lapply(unique(obj@groups), function(cond)
-        {
-            whichCond <- obj@groups %in% cond
-            apply(obj@denominator[,whichCond], 1, function(row) all(row >= min_tpm))
-        })
-    rep_filt <- do.call(cbind, rep_filt)
-    colnames(rep_filt) <- unique(obj@groups)
-    obj@validIntrons <- as.data.frame(obj@validIntrons & rep_filt)
-
-    obj
-}
-
-#' @export
-lowTpmFilter_upd <- function(obj, min_tpm)
-{
-    rep_filt <- lapply(unique(obj@groups), function(cond)
-        {
-            whichCond <- obj@groups %in% cond
-            apply(obj@denominator[,whichCond] - obj@numerator[,whichCond], 1, function(row) all(row >= min_tpm))
-        })
-    rep_filt <- do.call(cbind, rep_filt)
-    colnames(rep_filt) <- unique(obj@groups)
-    obj@validIntrons <- as.data.frame(obj@validIntrons & rep_filt)
-
-    obj
-}
-
-#' @export
-lowCountFilter <- function(obj, counts, n)
-{
-    counts <- data_frame(target_id = rownames(obj@retention)) %>%
-        inner_join(counts, by = "target_id") %>%
-        arrange(target_id) %>% select(-(target_id))
-
-    rep_filt <- lapply(unique(obj@groups), function(cond)
-        {
-            whichCond <- obj@groups %in% cond
-            apply(counts[,whichCond], 1, function(row) all(row > n));
-        })
-    rep_filt <- do.call(cbind, rep_filt)
-    colnames(rep_filt) <- unique(obj@groups)
-    obj@validIntrons <- as.data.frame(obj@validIntrons & rep_filt)
-
-    obj
-}
-
-#' @export
-perfectPsiFilter <- function(obj)
-{
-    rep_mean <- lapply(unique(obj@groups), function(grp)
-        {
-            whichCond <- obj@groups %in% grp
-
-            mean_ret <- apply(obj@retention[,whichCond], 1, mean)
-            round_mean <- round(mean_ret, 6)
-
-            tmp <- round_mean != 1.0 & round_mean != 0.0 & obj@validIntrons[,grp]
-            tmp[is.na(tmp)] <- FALSE
-            tmp
-        })
-    tmp_names <- colnames(obj@validIntrons)
-    obj@validIntrons <- data.frame(do.call(cbind, rep_mean))
-    colnames(obj@validIntrons) <- tmp_names
-
-    obj
 }
 
 #' Get intron lengths from an identifier
@@ -474,12 +254,14 @@ intron_length <- function(intron_names)
 #' Generate the null distribution
 #'
 #'
-#' @param grouped_df
+#' @param flat_grouped
+#' @param n_samp number of samples
+#' @param test_stat test statistic to use (function)
 #' @return a numeric with means
 #' @export
-intron_null_dist <- function(grouped_df, n_samp = 10000, test_stat = mean)
+intron_null_dist <- function(flat_grouped, n_samp = 10000, test_stat = mean)
 {
-    all_dat <- dcast(grouped_df, intron ~ sample, value.var = "retention")
+    all_dat <- dcast(flat_grouped, intron ~ sample, value.var = "retention")
     all_dat <- select(all_dat, -c(intron))
     all_dat <- all_dat[complete.cases(all_dat),]
 
@@ -492,7 +274,40 @@ intron_null_dist <- function(grouped_df, n_samp = 10000, test_stat = mean)
     list(data = data, ecdf = ecdf(data))
 }
 
-intron_pval <- function(mean_val, null_dist)
+#' @export
+intron_pval <- function(mean_val, null_ecdf)
 {
-    1 - null_dist$ecdf(meal_val)
+    1 - null_ecdf(mean_val)
+}
+
+#' Print an IntronRetention object
+#'
+#' Print an IntronRetention object
+#' @param ir an IntronRetention object
+#' @return the unchanged object \code{ir} after printing a summary to the
+#' terminal
+#' @export
+print.IntronRetention <- function(ir)
+{
+    cat(sprintf("IntronRetention object (%d introns)\n",
+            nrow(ir$retention)))
+    cat("----------------------------------------------\n")
+    cat("Samples:\t", paste(ir$labels, collapse = " "), "\n", sep = "")
+    cat("Conditions:\t", paste(ir$groups, collapse = " "), "\n", sep = "")
+    invisible(ir)
+}
+
+#' @export
+add_gene_names <- function(dat, ir)
+{
+    # TODO: ensure "intron" exists in dat
+
+    nrow_before <- nrow(dat)
+    dat <- data.table(dat) %>%
+        left_join(data.table(ir$intron_to_ext), by = "intron")
+
+    nrow_after <- nrow(dat)
+    stopifnot(nrow_before == nrow_after)
+
+    dat
 }
