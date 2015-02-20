@@ -153,6 +153,14 @@ newIntronRetention <- function(targetExpression,
         distinct() %>%
         mutate(extension_len = intron_length(intron_extension))
 
+    intron_to_gene <- intronToUnion %>%
+        select(intron, gene) %>%
+        distinct() %>%
+        data.table()
+
+    intron_to_ext <- intron_to_ext %>%
+        left_join(intron_to_gene, by = c("intron"))
+
     # TODO: add a list "filters" which keeps track of all the filters and their
     # calls
     retentionExp <- as.data.frame(retentionExp, stringsAsFactors = FALSE)
@@ -161,6 +169,7 @@ newIntronRetention <- function(targetExpression,
     targetExpression <- as.data.frame(targetExpression, stringsAsFactors = FALSE)
     flat <- as.data.frame(flat, stringsAsFactors = FALSE)
     intron_to_ext <- as.data.frame(intron_to_ext, stringsAsFactors = FALSE)
+    intronToUnion <- as.data.frame(intronToUnion, stringsAsFactors = FALSE)
 
     structure(list(retention = retentionExp,
             numerator = numExp,
@@ -170,7 +179,8 @@ newIntronRetention <- function(targetExpression,
             features = targetExpression,
             flat = flat,
             unique_counts = unique_counts,
-            intron_to_extension = intron_to_ext
+            intron_to_extension = intron_to_ext,
+            intron_to_union = intronToUnion
             ),
         class = "IntronRetention")
 }
@@ -285,4 +295,19 @@ print.IntronRetention <- function(ir)
     cat("Samples:\t", paste(ir$labels, collapse = " "), "\n", sep = "")
     cat("Conditions:\t", paste(ir$groups, collapse = " "), "\n", sep = "")
     invisible(ir)
+}
+
+#' @export
+add_gene_names <- function(dat, ir)
+{
+    # TODO: ensure "intron" exists in dat
+
+    nrow_before <- nrow(dat)
+    dat <- data.table(dat) %>%
+        left_join(data.table(ir$intron_to_ext), by = "intron")
+
+    nrow_after <- nrow(dat)
+    stopifnot(nrow_before == nrow_after)
+
+    dat
 }
