@@ -117,10 +117,10 @@ img {
 <p>There are two required portions of the tool to perform intron retention quantification, though installing the post-processing tools (intron retention) installs the python code with the exception of dependencies. The <strong>pre-process</strong> step is written in python and only needs to be run when the annotation changes. The <strong>post-processing</strong> step is written in <code>R</code> and where most of your interaction will take place.</p>
 <div id="installing-the-pre-processing-tools" class="section level3">
 <h3><span class="header-section-number">1.1.1</span> Installing the pre-processing tools</h3>
-<p>If you have installed the <code>R</code> package (see installing the post-processing tools), then you have successfully installed the pre-processing tools. From <code>R</code>, you can find the path by typing:</p>
+<p>If you have installed the <code>R</code> package (see <a href="#installing-the-post-processing-tools">Installing the post-processing tools</a>), then you have successfully installed the pre-processing tools. From <code>R</code>, you can find the path by typing:</p>
 <pre class="r"><code>system.file(&quot;pre-process&quot;, package=&quot;kma&quot;)</code></pre>
 <pre><code>## [1] &quot;/Library/Frameworks/R.framework/Versions/3.1/Resources/library/kma/pre-process&quot;</code></pre>
-<p>The only additional dependencies are the Python packages <code>pyfasta</code>, <code>biopython</code> and <code>pysam</code>. Both packages can be installed via PyPI:</p>
+<p>The only additional dependencies are the Python packages <code>pyfasta</code>, <code>biopython</code> and <code>pysam</code>. All packages can be installed via PyPI:</p>
 <pre class="{bash}"><code>pip install pyfasta biopython pysam</code></pre>
 </div>
 <div id="installing-the-quantification-tools" class="section level3">
@@ -134,8 +134,23 @@ img {
 </div>
 <div id="installing-the-post-processing-tools" class="section level3">
 <h3><span class="header-section-number">1.1.3</span> Installing the post-processing tools</h3>
-<p>The post-processing tools are contained in an <code>R</code> packaged called <code>kma</code>. Currently, the latest package is on <a href="http://github.com/pachterlab/kma">Github</a>. To install, make sure you have the <code>devtools</code> package installed and type</p>
-<pre class="r"><code>devtools::install_github(&quot;http://github.com/pachterlab/kma&quot;)</code></pre>
+<p>The pre- and post-processing tools are contained in an <code>R</code> packaged called <code>kma</code>. The development version is always on <a href="http://github.com/pachterlab/kma">Github</a>. To install, <code>kma</code> and required <code>R</code> dependencies, runs the code below:</p>
+<pre class="r"><code>required_packages &lt;- c(&quot;devtools&quot;, &quot;data.table&quot;, &quot;reshape2&quot;, &quot;dplyr&quot;)
+install.packages(required_packages)
+devtools::install_github(&quot;http://github.com/pachterlab/kma&quot;)</code></pre>
+<p>You can then load the <code>kma</code> R package like you would any other R packages:</p>
+<pre class="r"><code>library(&quot;kma&quot;)</code></pre>
+<pre><code>## Loading required package: dplyr
+## 
+## Attaching package: 'dplyr'
+## 
+## The following object is masked from 'package:stats':
+## 
+##     filter
+## 
+## The following objects are masked from 'package:base':
+## 
+##     intersect, setdiff, setequal, union</code></pre>
 </div>
 </div>
 <div id="organization" class="section level2">
@@ -143,64 +158,67 @@ img {
 <p>We recommend organizing your experiments in the following format:</p>
 <pre><code>experiment
 |____conditionA
-| |____rep1
-| |____rep2
-| |____rep3
+| |____conditionA1
+| |____conditionA2
+| |____conditionA3
 |____conditionB
-| |____rep1
-| |____rep2
-| |____rep3</code></pre>
-<p>where <code>experiment</code> is the top level for the particular set of experiments, <code>conditionX</code> refers to the condition (e.g. tumor, or control), and <code>repY</code> represents the biological replicates. This allows for a structured way to keep track of your data as well as an easy way to load it in <code>R</code>. An example can be seen in the section 2 “A worked example”.</p>
+| |____conditionB1
+| |____conditionB2
+| |____conditionB3</code></pre>
+<p>where <code>experiment</code> is the top level for the particular set of experiments, <code>conditionX</code> refers to the condition (e.g. tumor, or control), and <code>conditionXY</code> represents the biological replicates. This allows for a structured way to keep track of your data as well as an easy way to load it in <code>R</code>. An example can be seen in the <a href="#a-worked-example">worked example</a> section.</p>
 </div>
 <div id="generate-intron-coordinates-pre-processing" class="section level2">
 <h2><span class="header-section-number">1.3</span> Generate intron coordinates (pre-processing)</h2>
-<p>The path can be found in R by typing <code>system.file(&quot;preprocess&quot;, package=&quot;kma&quot;)</code>. Open a terminal and put this path in an environment variable:</p>
+<p><strong>Note</strong>: Pre-processing only has to be run when the gene annotation changes. If you use the same annotation for many experiments, you won’t be running this tool often.</p>
+<p>The path to the pre-processing tools can be found in R by typing <code>system.file(&quot;preprocess&quot;, package=&quot;kma&quot;)</code>. Open a terminal and put this path in an environment variable:</p>
 <pre class="{bash}"><code>PRE=/path/to/kma/preprocess</code></pre>
 <p>If you are on a Mac, the path might look like: /Library/Frameworks/R.framework/Versions/3.1/Resources/library/kma/preprocess</p>
-<p>We are now ready to generate the introns. A typical call looks as follows:</p>
+<p>We are now ready to generate the introns. A typical command line call to the pre-processing tools looks like:</p>
 <pre class="{bash}"><code>python $PRE/generate_introns.py --genome seq.fa --gtf trans.gtf --extend N --out out_dir</code></pre>
-<p>With the inputs being:</p>
+<p>Where the inputs are:</p>
 <ul>
 <li><code>--genome seq.fa</code>: <strong>genome sequence</strong> in <a href="http://en.wikipedia.org/wiki/FASTA_format">Multi-FASTA format</a> where contig names correspond to the GTF file.</li>
 <li><code>--gtf trans.gtf</code>: <strong>annotation file</strong> in <a href="http://www.ensembl.org/info/website/upload/gff.html">GTF format</a>.</li>
-<li><code>--extend N</code>: Optional. If set, <code>N</code> is the number of bases bases to overlap into the intron. Note, this should be at most <code>read_length - 1</code>, but we suggest making it smaller.</li>
+<li><code>--extend N</code>: Optional, though we strongly recommend setting it. If set, <code>N</code> is the number of bases bases to overlap into the intron. Note, this should be at most <code>read_length - 1</code>, but we suggest making it smaller.</li>
 <li><code>--out out_dir</code>: A directory to write the outputs. Will be created if doesn’t already exist.</li>
 </ul>
 <p>The following outputs will then be put in <code>out_dir</code>:</p>
 <ul>
 <li><strong>introns.fa</strong> - a FASTA file containing the intron sequences.</li>
 <li><strong>introns.bed</strong> - BED file with coordinates used to quantify intron.</li>
-<li><strong>intron_to_transcripts.txt</strong> - used later.</li>
+<li><strong>intron_to_transcripts.txt</strong> - a table of intron to transcript relationships. This file is used during the post-processing phase.</li>
 </ul>
 </div>
 <div id="quantification" class="section level2">
 <h2><span class="header-section-number">1.4</span> Quantification</h2>
-<p><strong>Note</strong>: Technically any quantification tool can be used with <code>kma</code>, but currently only support with <code>eXpress</code> is implemented. Please contact me if you’re interested in a quantification tool being supported.</p>
+<p><strong>Note</strong>: Technically any quantification tool can be used with <code>kma</code>, but currently only support with <code>eXpress</code> is implemented. Please contact me <a href="https://github.com/pachterlab/kma/issues">on Github</a> if you’re interested in a quantification tool being supported.</p>
 <p>Here, we will discuss quantification. After <code>generate_introns.py</code> is run, <code>introns.fa</code> should be combined with the full transcript sequences. This can be done using the Linux command <code>cat</code>:</p>
 <pre class="{bash}"><code>cat trans.fa introns.fa &gt; trans_and_introns.fa</code></pre>
 <p>We assume the file name is <code>trans_and_introns.fa</code> in the following sections, but the file name can be anything.</p>
 <p>After you’ve done this, this section requires the following steps:</p>
 <ol style="list-style-type: decimal">
-<li>Create the <code>Bowtie 2</code> index</li>
+<li>Create the Bowtie 2 index</li>
 <li>Align reads to the augmented transcriptome</li>
 <li>Quantify against the augmented transcriptome</li>
 </ol>
 <div id="creating-the-bowtie-2-index" class="section level3">
 <h3><span class="header-section-number">1.4.1</span> Creating the Bowtie 2 index</h3>
-<p>See the <code>Bowtie 2</code> manual for more advanced options.</p>
+<p>See the Bowtie 2 manual for more advanced options.</p>
 <pre class="{bash}"><code>bowtie2-build --offrate 1 trans_and_introns.fa trans_and_introns</code></pre>
-<p>This only has to be run once if you decide to change the gene annotation.</p>
+<p>This only has to be run once if every time you decide to change the gene annotation.</p>
 </div>
 <div id="align-reads" class="section level3">
 <h3><span class="header-section-number">1.4.2</span> Align reads</h3>
-<p>Once you have a <code>Bowtie 2</code> index, you can align any number of RNA-Seq experiments to that index. The following arguments are recommended when running Bowtie 2:</p>
+<p>Once you have a Bowtie 2 index, you can align any number of RNA-Seq experiments to that index. The following arguments are recommended when running Bowtie 2:</p>
 <pre class="{bash}"><code>bowtie2 -k 200 --rdg 6,5 --rfg 6,5 --score-min L,-.6,-.4 -X trans_and_introns
     -1 left.fastq -2 right.fastq | samtools view -Sb - &gt; hits.bam</code></pre>
+<p>If you don’t have many reads, you might consider replacing the <code>-k 200</code> arugment with <code>-a</code>.</p>
 </div>
 <div id="quantify" class="section level3">
 <h3><span class="header-section-number">1.4.3</span> Quantify</h3>
 <p>Once you’ve aligned the reads, you can run eXpress against the alignments. See the eXpress website for additional arguments. The general eXpress call is as follows:</p>
 <pre class="{bash}"><code>express trans_and_introns.fa hits.bam</code></pre>
+<p>If you don’t have many reads, consider running additional batch iterations using the <code>-B</code> argument.</p>
 </div>
 </div>
 <div id="computing-intron-retention-post-processing" class="section level2">
@@ -210,7 +228,7 @@ img {
 <li><code>tpm</code> - a <code>data.frame</code> with TPM of all samples</li>
 <li><code>uniq_counts</code> - a <code>data.frame</code> with the number of unique counts of all samples</li>
 <li><code>all_data</code> - a list of <code>data.frame</code>s from all the eXpress output. Sorted by <code>target_id</code>.</li>
-<li><code>sample</code> - a character vector for each sample, describing the sample (e.g. <code>tumor_rep1</code>)</li>
+<li><code>sample</code> - a character vector for each sample, describing the sample (e.g. <code>tumor1</code>, <code>tumor2</code>)</li>
 <li><code>condition</code> - a character vector for each sample describing the grouping (e.g. <code>tumor</code>)</li>
 </ul>
 <p>This data can then be used by <code>newIntronRetention</code>. An example of this can be seen in <a href="#post-processing">the worked example</a>.</p>
@@ -218,9 +236,9 @@ img {
 </div>
 <div id="a-worked-example" class="section level1">
 <h1><span class="header-section-number">2</span> A worked example</h1>
-<p>We will run through a small example. The data set including reads <a href="http://math.mcb.berkeley.edu/~pimentel/kma/kma_example.tar.gz">can be found here</a>. If you are not interested in the pre-processing step (some might find it simple), the results from the pipeline exist in the R package:</p>
+<p>We will run through a small example. The data set including reads <a href="http://math.mcb.berkeley.edu/~pimentel/kma/kma_example.tar.gz">can be found here</a>. If you are not interested in the pre-processing and quantification steps (some might find it simple), the results from the pipeline exist in the R package:</p>
 <pre class="r"><code>system.file(&quot;example&quot;, package=&quot;kma&quot;)</code></pre>
-<p>In this case, you can simply jump to the post-processing step which runs through using the R package itself.</p>
+<p>In this case, you can simply jump to the <a href="#post-processing">post-processing</a> phase which runs through using the R package itself.</p>
 <p>This example contains the reads, annotation, and sequences for the SF3B1 gene in orthochromatic erythroblasts from <a href="http://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE53635">GSE53635</a>. This dataset is unrealistically small, so the results aren’t entirely reliable, but can be run very quickly through the pipeline. Thus, the results aren’t very reliable, but serves as an example of how to run through the pipeline.</p>
 <div id="pre-processing" class="section level2">
 <h2><span class="header-section-number">2.1</span> Pre-processing</h2>
@@ -234,6 +252,7 @@ cd kma_example/example
 python $PRE/generate_introns.py --genome genome/chr2.fa \
     --gtf annotation/refGene_sf3b1.gtf --extend 25 \
     --out kma_pre-process_out</code></pre>
+<p>We chose <code>--extend 25</code> here because the reads are 51 bases long. An overlap of 25 bases on each side will give us a fair amount of junction reads without resulting in spurious alignments. If your read length is longer, feel free to set this value higher.</p>
 <p>The output files will then be stored in <code>kma_pre-process_out</code> which you can view using <code>ls kma_pre-process_out</code>:</p>
 <pre><code>intron_to_transcripts.txt introns.bed               introns.fa</code></pre>
 <p>The <code>introns.fa</code> file can now be merged with the transcriptome sequences in the quantification section.</p>
@@ -244,17 +263,17 @@ python $PRE/generate_introns.py --genome genome/chr2.fa \
 <h3><span class="header-section-number">2.2.1</span> Merging the transcriptome and intron sequences</h3>
 <p>Next, we need to merge the transcriptome and intron sequences. This can be done using the command <code>cat</code>:</p>
 <pre><code>cat annotation/sf3b1.fa kma_pre-process_out/introns.fa &gt; annotation/sf3b1_with_introns.fa</code></pre>
-<p>The file <code>annotations/sf3b1_with_introns.fa</code> now contains the transcriptome sequences and the intron sequences. This FASTA file can now be used to build a <code>Bowtie2</code> index for alignment.</p>
+<p>The file <code>annotations/sf3b1_with_introns.fa</code> now contains the transcriptome sequences and the intron sequences. This FASTA file can now be used to build a Bowtie 2 index for alignment.</p>
 </div>
 <div id="building-the-bowtie-2-index" class="section level3">
 <h3><span class="header-section-number">2.2.2</span> Building the Bowtie 2 index</h3>
-<p>We want to align against the introns and transcripts. Thus, we will build a <code>Bowtie2</code> index. See the <code>Bowtie2</code> website for more information on the parameters:</p>
+<p>We want to align against the introns and transcripts. Thus, we will build a Bowtie 2 index. See the Bowtie 2 website for more information on the parameters:</p>
 <pre class="{bash}"><code>bowtie2-build --offrate 1 annotation/sf3b1_with_introns.fa annotation/sf3b1_with_introns</code></pre>
-<p>This call will result in many Bowtie index files (<code>*.bt2</code> files).</p>
+<p>This call will result in many Bowtie 2 index files (<code>*.bt2</code> files).</p>
 </div>
 <div id="alignment" class="section level3">
 <h3><span class="header-section-number">2.2.3</span> Alignment</h3>
-<p>For alignment, we will only align one sample as aligning other samples can be done similarly and can be automated. Please note, the reads we are aligning are single-end – the command for paired-end reads can be found on the Bowtie 2 website.</p>
+<p>For alignment, we will only align one sample as aligning other samples can be done similarly and can be automated. Please note, the reads we are aligning are single-end. The command for paired-end reads can be found on the Bowtie 2 website.</p>
 <pre class="{bash}"><code>bowtie2 -k 200 --rdg 6,5 --rfg 6,5 --score-min L,-.6,-.4 -x annotation/sf3b1_with_introns \
     -U experiment/ortho/ortho1/*.fastq.gz |
     samtools view -Sb - &gt; experiment/ortho/ortho1/sf3b1.bam</code></pre>
@@ -279,17 +298,17 @@ xprs_fnames</code></pre>
 <pre><code>## [1] &quot;/Library/Frameworks/R.framework/Versions/3.1/Resources/library/kma/example/experiment/ortho/ortho1/xprs_out/results.xprs&quot;
 ## [2] &quot;/Library/Frameworks/R.framework/Versions/3.1/Resources/library/kma/example/experiment/ortho/ortho2/xprs_out/results.xprs&quot;
 ## [3] &quot;/Library/Frameworks/R.framework/Versions/3.1/Resources/library/kma/example/experiment/ortho/ortho3/xprs_out/results.xprs&quot;</code></pre>
-<p>Sample names can be inferred from the organization as well:</p>
+<p>Sample names can be inferred from the file path as well:</p>
 <pre class="r"><code>sample_names &lt;- sub(file.path(base_dir, &quot;experiment/[a-z]+/&quot;), &quot;&quot;, xprs_fnames) %&gt;%
     sub(&quot;xprs_out/results.xprs&quot;, &quot;&quot;, .) %&gt;%
     gsub(&quot;/&quot;, &quot;&quot;, .)
 sample_names</code></pre>
 <pre><code>## [1] &quot;ortho1&quot; &quot;ortho2&quot; &quot;ortho3&quot;</code></pre>
-<p>Assuming you label your replicates according to the condition they are a part of, you can also infer condition names:</p>
+<p>Since we labelled replicates according to the condition they are a part of, you can also infer condition names from the sample:</p>
 <pre class="r"><code>condition_names &lt;- sub(&quot;[0-9]+&quot;, &quot;&quot;, sample_names)
 condition_names</code></pre>
 <pre><code>## [1] &quot;ortho&quot; &quot;ortho&quot; &quot;ortho&quot;</code></pre>
-<p>You now have:</p>
+<p>You now have three R variables:</p>
 <ul>
 <li><code>xprs_fnames</code> - a character vector of file names pointing to the quantification files</li>
 <li><code>sample_names</code> - a character vector of identifiers for each sample</li>
@@ -325,17 +344,41 @@ head(intron_to_trans)</code></pre>
 ## 'melting' expression
 ## joining unique_counts and retention data
 ## sorting and grouping by (intron, condition)</code></pre>
+<p><code>newIntronRetention</code> take the following arguments:</p>
+<ul>
+<li>expression data frame (in this case we are using TPM from eXpress)</li>
+<li>intron to transcripts relationship table</li>
+<li>condition character vector</li>
+<li>Optional: a unique counts vector. This is used for filtering later on</li>
+</ul>
+<p>See <code>help(newIntronRetention)</code> for more details on the arguments.</p>
 <p>Printing the <code>IntronRetention</code> object results in a short summary:</p>
 <pre class="r"><code>print(ir)</code></pre>
 <pre><code>## IntronRetention object (25 introns)
 ## ----------------------------------------------
 ## Samples: ortho1 ortho2 ortho3
 ## Conditions:  ortho ortho ortho</code></pre>
+<p>The data member <code>flat</code> in the <code>IntronRetention</code> object is where most of the operations happen. Advanced users might be interested in performing direct exploratory analysis on this table, which is similar to a denormalized SQL table (often reffered to as a “tidy” table in R).</p>
+<pre class="r"><code>head(ir$flat)</code></pre>
+<pre><code>##   sample                   intron numerator denominator  retention
+## 1 ortho1 chr2:198257185-198257695  4282.919    448626.8 0.00954673
+## 2 ortho2 chr2:198257185-198257695  6981.895    308804.7 0.02260942
+## 3 ortho3 chr2:198257185-198257695  5393.122    304077.2 0.01773603
+## 4 ortho1 chr2:198257912-198260779 25633.290    469977.2 0.05454156
+## 5 ortho2 chr2:198257912-198260779 12321.710    314144.5 0.03922306
+## 6 ortho3 chr2:198257912-198260779 10855.100    309539.2 0.03506858
+##   condition unique_counts
+## 1     ortho            23
+## 2     ortho            15
+## 3     ortho            15
+## 4     ortho          1040
+## 5     ortho           200
+## 6     ortho           207</code></pre>
 </div>
 <div id="filtering" class="section level3">
 <h3><span class="header-section-number">2.3.2</span> Filtering</h3>
 <p>Filter functions have the following format: <code>filter_name(ir, options)</code> where <code>ir</code> is an <code>IntronRetention</code> object, and options are options for the filter. They return an <code>IntronRetention</code> object with an updated <code>flat</code> member. Filters can be implemented by the user, but should return <code>TRUE</code> if the intron passes the filter and <code>FALSE</code> otherwise. The column name for each filter should begin with <code>f_</code>.</p>
-<p>This example filters out denominators that are below 1 TPM, introns that have exactly 0 or 1 PSI (due to either no contributions from the intron coverage or solely coverage from the intron). <code>filter_low_frags</code> filters out introns that don’t have <code>N</code> number of unique reads:</p>
+<p>These filters below filter denominators that have expression below 1 TPM, introns that have exactly 0 or 1 PSI (due to either no contributions from the intron coverage or solely coverage from the intron). <code>filter_low_frags</code> filters out introns that don’t have at least <code>N</code> number of unique reads:</p>
 <pre class="r"><code>ir &lt;- ir %&gt;%
     filter_low_tpm(1) %&gt;%
     filter_perfect_psi() %&gt;%
@@ -347,7 +390,7 @@ head(intron_to_trans)</code></pre>
 ##  [9] &quot;f_perf_psi&quot;    &quot;f_low_count_3&quot;</code></pre>
 <div id="zero-coverage" class="section level4">
 <h4><span class="header-section-number">2.3.2.1</span> Zero coverage</h4>
-<p>Zero coverage filter has to be computed on the read alignments and corresponding eXpress results.</p>
+<p>The zero coverage filter is a special type of filter that has to be computed on the read alignments and corresponding eXpress results.</p>
 <pre class="{bash}"><code>python $PRE/zeroCoverage.py experiment/ortho/ortho1/xprs_out/results.xprs \
     experiment/ortho/ortho1/sf3b1.bam \
     experiment/ortho/ortho1/zero_coverage.txt</code></pre>
@@ -369,7 +412,7 @@ head(all_zc)</code></pre>
 ## 5 chr2:198263280-198264803    203 8.181478e-05 1.554481e-03 ortho1
 ## 6 chr2:198264865-198265000     16 6.042884e-01 1.000000e+00 ortho1
 ## Variables not shown: condition (chr)</code></pre>
-<p>The result from <code>get_batch_intron_zc</code> is a <code>data.frame</code> that can be inspected manually if you’d like. To incorporate it to <code>kma</code>, use <code>summarize_zero_coverage</code>:</p>
+<p>The result from <code>get_batch_intron_zc</code> is a <code>data.frame</code> that can be inspected manually if you’d like. To incorporate it with a <code>IntronRetention</code> object, use <code>summarize_zero_coverage</code>:</p>
 <pre class="r"><code>ir &lt;- summarize_zero_coverage(ir, all_zc)</code></pre>
 <pre><code>## Summarize zero coverage across introns and conditions
 ## Join IntronRetention and zero coverage</code></pre>
@@ -382,7 +425,7 @@ head(all_zc)</code></pre>
 </div>
 <div id="hypothesis-testing" class="section level3">
 <h3><span class="header-section-number">2.3.3</span> Hypothesis testing</h3>
-<p>Hypothesis testing first aggregates all filters (by taking the intersection of all filters), computes the null distribution, then returns a data frame summarizing the test:</p>
+<p>Hypothesis testing aggregates all filters (by taking the intersection of all filters), computes the null distribution, then returns a data frame summarizing the test. Since there is some randomness involved in generating the permutations, you might consider setting a seed before calling <code>retention_test</code> as we do below:</p>
 <pre class="r"><code>set.seed(42)
 ir_test &lt;- retention_test(ir)</code></pre>
 <pre><code>## aggregating filters

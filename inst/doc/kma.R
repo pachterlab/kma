@@ -2,7 +2,12 @@
 system.file("pre-process", package="kma")
 
 ## ----, eval=FALSE--------------------------------------------------------
+#  required_packages <- c("devtools", "data.table", "reshape2", "dplyr")
+#  install.packages(required_packages)
 #  devtools::install_github("http://github.com/pachterlab/kma")
+
+## ------------------------------------------------------------------------
+library("kma")
 
 ## ----eval=FALSE----------------------------------------------------------
 #  system.file("example", package="kma")
@@ -43,6 +48,9 @@ ir <- newIntronRetention(xprs$tpm, intron_to_trans, xprs$condition,
 
 ## ------------------------------------------------------------------------
 print(ir)
+
+## ------------------------------------------------------------------------
+head(ir$flat)
 
 ## ------------------------------------------------------------------------
 ir <- ir %>%

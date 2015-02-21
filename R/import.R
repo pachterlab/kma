@@ -22,5 +22,6 @@ NULL
 #' @importFrom reshape2 dcast
 NULL
 
+#' @importFrom data.table data.table
 #' @importFrom data.table fread
 NULL

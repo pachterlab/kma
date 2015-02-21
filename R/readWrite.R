@@ -28,7 +28,7 @@ getCol <- function(aList, col, column_ids, substring_replace = NULL)
 {
     df <- data.frame(lapply(aList, function(x) x[col]))
 
-    setnames(df, colnames(df), column_ids)
+    data.table::setnames(df, colnames(df), column_ids)
 
     df$target_id <- aList[[1]]$target_id
 

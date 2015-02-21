@@ -41,16 +41,16 @@ most of your interaction will take place.
 
 ### Installing the pre-processing tools
 
-If you have installed the `R` package (see installing the post-processing
-tools), then you have successfully installed the
-pre-processing tools. From `R`, you can find the path by typing:
+If you have installed the `R` package (see [Installing the post-processing
+tools](#installing-the-post-processing-tools)), then you have successfully
+installed the pre-processing tools. From `R`, you can find the path by typing:
 
 ```{r}
 system.file("pre-process", package="kma")
 ```
 
 The only additional dependencies are the Python packages `pyfasta`, `biopython` and `pysam`.
-Both packages can be installed via PyPI:
+All packages can be installed via PyPI:
 
 ```{bash}
 pip install pyfasta biopython pysam
@@ -67,13 +67,21 @@ Please see the corresponding documentation on their respective web pages.
 
 ### Installing the post-processing tools
 
-The post-processing tools are contained in an `R` packaged called `kma`.
-Currently, the latest package is on
-[Github](http://github.com/pachterlab/kma). To install, make sure you have
-the `devtools` package installed and type
+The pre- and post-processing tools are contained in an `R` packaged called
+`kma`.  The development version is always on
+[Github](http://github.com/pachterlab/kma). To install, `kma` and required `R`
+dependencies, runs the code below:
 
 ```{r, eval=FALSE}
+required_packages <- c("devtools", "data.table", "reshape2", "dplyr")
+install.packages(required_packages)
 devtools::install_github("http://github.com/pachterlab/kma")
+```
+
+You can then load the `kma` R package like you would any other R packages:
+
+```{r}
+library("kma")
 ```
 
 ## Organization
@@ -82,25 +90,31 @@ We recommend organizing your experiments in the following format:
 ```
 experiment
 |____conditionA
-| |____rep1
-| |____rep2
-| |____rep3
+| |____conditionA1
+| |____conditionA2
+| |____conditionA3
 |____conditionB
-| |____rep1
-| |____rep2
-| |____rep3
+| |____conditionB1
+| |____conditionB2
+| |____conditionB3
 ```
 
 where `experiment` is the top level for the particular set of experiments,
-`conditionX` refers to the condition (e.g. tumor, or control), and `repY`
-represents the biological replicates. This allows for a structured way to keep
-track of your data as well as an easy way to load it in `R`. An example can be
-seen in the section 2 "A worked example".
+`conditionX` refers to the condition (e.g. tumor, or control), and
+`conditionXY` represents the biological replicates. This allows for
+a structured way to keep track of your data as well as an easy way to load it
+in `R`. An example can be seen in the [worked example](#a-worked-example)
+section.
 
 ## Generate intron coordinates (pre-processing)
 
-The path can be found in R by typing `system.file("preprocess",
-package="kma")`. Open a terminal and put this path in an environment variable:
+**Note**: Pre-processing only has to be run when the gene annotation changes.
+If you use the same annotation for many experiments, you won't be running this
+tool often.
+
+The path to the pre-processing tools can be found in R by typing
+`system.file("preprocess", package="kma")`. Open a terminal and put this path
+in an environment variable:
 
 ```{bash}
 PRE=/path/to/kma/preprocess
@@ -108,22 +122,23 @@ PRE=/path/to/kma/preprocess
 
 If you are on a Mac, the path might look like: /Library/Frameworks/R.framework/Versions/3.1/Resources/library/kma/preprocess
 
-We are now ready to generate the introns. A typical call looks as follows:
+We are now ready to generate the introns. A typical command line call to the
+pre-processing tools looks like:
 
 ```{bash}
 python $PRE/generate_introns.py --genome seq.fa --gtf trans.gtf --extend N --out out_dir
 ```
 
-With the inputs being:
+Where the inputs are:
 
 - `--genome seq.fa`: **genome sequence**  in [Multi-FASTA
   format](http://en.wikipedia.org/wiki/FASTA_format) where contig names
   correspond to the GTF file.
 - `--gtf trans.gtf`: **annotation file** in [GTF
   format](http://www.ensembl.org/info/website/upload/gff.html).
-- `--extend N`: Optional. If set, `N` is the number of bases bases to overlap
-  into the intron. Note, this should be at most `read_length - 1`, but we
-  suggest making it smaller.
+- `--extend N`: Optional, though we strongly recommend setting it. If set, `N`
+  is the number of bases bases to overlap into the intron. Note, this should be
+  at most `read_length - 1`, but we suggest making it smaller.
 - `--out out_dir`: A directory to write the outputs. Will be created if doesn't
   already exist.
 
@@ -131,13 +146,15 @@ The following outputs will then be put in `out_dir`:
 
 - **introns.fa** - a FASTA file containing the intron sequences.
 - **introns.bed** - BED file with coordinates used to quantify intron.
-- **intron\_to\_transcripts.txt** - used later.
+- **intron\_to\_transcripts.txt** - a table of intron to transcript
+  relationships. This file is used during the post-processing phase.
 
 ## Quantification
 
 **Note**: Technically any quantification tool can be used with `kma`, but
-currently only support with `eXpress` is implemented. Please contact me if
-you're interested in a quantification tool being supported.
+currently only support with `eXpress` is implemented. Please contact me [on
+Github](https://github.com/pachterlab/kma/issues) if you're interested in
+a quantification tool being supported.
 
 Here, we will discuss quantification. After `generate_introns.py` is run,
 `introns.fa` should be combined with the full transcript sequences. This can be
@@ -152,30 +169,33 @@ the file name can be anything.
 
 After you've done this, this section requires the following steps:
 
-1. Create the `Bowtie 2` index
+1. Create the Bowtie 2 index
 1. Align reads to the augmented transcriptome
 1. Quantify against the augmented transcriptome
 
 ### Creating the Bowtie 2 index
 
-See the `Bowtie 2` manual for more advanced options.
+See the Bowtie 2 manual for more advanced options.
 
 ```{bash}
 bowtie2-build --offrate 1 trans_and_introns.fa trans_and_introns
 ```
 
-This only has to be run once if you decide to change the gene annotation.
+This only has to be run once if every time you decide to change the gene
+annotation.
 
 ### Align reads
 
-Once you have a `Bowtie 2` index, you can align any number of RNA-Seq
-experiments to that index. The following arguments are recommended when running
-Bowtie 2:
+Once you have a Bowtie 2 index, you can align any number of RNA-Seq experiments
+to that index. The following arguments are recommended when running Bowtie 2:
 
 ```{bash}
 bowtie2 -k 200 --rdg 6,5 --rfg 6,5 --score-min L,-.6,-.4 -X trans_and_introns
     -1 left.fastq -2 right.fastq | samtools view -Sb - > hits.bam
 ```
+
+If you don't have many reads, you  might consider replacing the `-k 200`
+arugment with `-a`.
 
 ### Quantify
 
@@ -186,6 +206,9 @@ follows:
 ```{bash}
 express trans_and_introns.fa hits.bam
 ```
+
+If you don't have many reads, consider running additional batch iterations
+using the `-B` argument.
 
 ## Computing intron retention (post-processing)
 
@@ -199,7 +222,7 @@ The first step is to the load the quantification data into `R`. The function
 - `all_data` - a list of `data.frame`s from all the eXpress output. Sorted by
   `target_id`.
 - `sample` - a character vector for each sample, describing the sample (e.g.
-  `tumor_rep1`)
+  `tumor1`, `tumor2`)
 - `condition` - a character vector for each sample describing the grouping
   (e.g. `tumor`)
 
@@ -210,15 +233,15 @@ seen in [the worked example](#post-processing).
 
 We will run through a small example. The data set including reads [can be found
 here](http://math.mcb.berkeley.edu/~pimentel/kma/kma_example.tar.gz). If you
-are not interested in the pre-processing step (some might find it simple), the
-results from the pipeline exist in the R package:
+are not interested in the pre-processing and quantification steps (some might
+find it simple), the results from the pipeline exist in the R package:
 
 ```{r eval=FALSE}
 system.file("example", package="kma")
 ```
 
-In this case, you can simply jump to the post-processing step which runs
-through using the R package itself.
+In this case, you can simply jump to the [post-processing](#post-processing)
+phase which runs through using the R package itself.
 
 This example contains the reads, annotation, and sequences for the SF3B1 gene
 in orthochromatic erythroblasts from
@@ -253,6 +276,11 @@ python $PRE/generate_introns.py --genome genome/chr2.fa \
     --out kma_pre-process_out
 ```
 
+We chose `--extend 25` here because the reads are 51 bases long. An overlap of
+25 bases on each side will give us a fair amount of junction reads without
+resulting in spurious alignments. If your read length is longer, feel free to
+set this value higher.
+
 The output files will then be stored in `kma_pre-process_out` which you can
 view using `ls kma_pre-process_out`:
 
@@ -276,25 +304,25 @@ cat annotation/sf3b1.fa kma_pre-process_out/introns.fa > annotation/sf3b1_with_i
 
 The file `annotations/sf3b1_with_introns.fa` now contains the transcriptome
 sequences and the intron sequences. This FASTA file can now be used to build
-a `Bowtie2` index for alignment.
+a Bowtie 2 index for alignment.
 
 ### Building the Bowtie 2 index
 
 We want to align against the introns and transcripts. Thus, we will build
-a `Bowtie2` index. See the `Bowtie2` website for more information on the
+a Bowtie 2 index. See the Bowtie 2 website for more information on the
 parameters:
 
 ```{bash}
 bowtie2-build --offrate 1 annotation/sf3b1_with_introns.fa annotation/sf3b1_with_introns
 ```
 
-This call will result in many Bowtie index files (`*.bt2` files).
+This call will result in many Bowtie 2 index files (`*.bt2` files).
 
 ### Alignment
 
 For alignment, we will only align one sample as aligning other samples can be
 done similarly and can be automated. Please note, the reads we are aligning are
-single-end -- the command for paired-end reads can be found on the Bowtie
+single-end. The command for paired-end reads can be found on the Bowtie
 2 website.
 
 ```{bash}
@@ -332,7 +360,7 @@ xprs_fnames <- Sys.glob(file.path(base_dir, "experiment/*/*/xprs_out/results.xpr
 xprs_fnames
 ```
 
-Sample names can be inferred from the organization as well:
+Sample names can be inferred from the file path as well:
 
 ```{r}
 sample_names <- sub(file.path(base_dir, "experiment/[a-z]+/"), "", xprs_fnames) %>%
@@ -341,15 +369,15 @@ sample_names <- sub(file.path(base_dir, "experiment/[a-z]+/"), "", xprs_fnames) 
 sample_names
 ```
 
-Assuming you label your replicates according to the condition they are a part
-of, you can also infer condition names:
+Since we labelled replicates according to the condition they are a part of, you
+can also infer condition names from the sample:
 
 ```{r}
 condition_names <- sub("[0-9]+", "", sample_names)
 condition_names
 ```
 
-You now have:
+You now have three R variables:
 
 - `xprs_fnames` - a character vector of file names pointing to the
   quantification files
@@ -387,10 +415,28 @@ ir <- newIntronRetention(xprs$tpm, intron_to_trans, xprs$condition,
     xprs$uniq_counts)
 ```
 
+`newIntronRetention` take the following arguments:
+
+- expression data frame (in this case we are using TPM from eXpress)
+- intron to transcripts relationship table
+- condition character vector
+- Optional: a unique counts vector. This is used for filtering later on
+
+See `help(newIntronRetention)` for more details on the arguments.
+
 Printing the `IntronRetention` object results in a short summary:
 
 ```{r}
 print(ir)
+```
+
+The data member `flat` in the `IntronRetention` object is where most of the
+operations happen. Advanced users might be interested in performing direct
+exploratory analysis on this table, which is similar to a denormalized SQL
+table (often reffered to as a "tidy" table in R).
+
+```{r}
+head(ir$flat)
 ```
 
 ### Filtering
@@ -402,10 +448,10 @@ can be implemented by the user, but should return `TRUE` if the intron passes
 the filter and `FALSE` otherwise. The column name for each filter should begin
 with `f_`.
 
-This example filters out denominators that are below 1 TPM, introns that have
-exactly 0 or 1 PSI (due to either no contributions from the intron coverage or
-solely coverage from the intron). `filter_low_frags` filters out introns that
-don't have `N` number of unique reads:
+These filters below filter denominators that have expression below 1 TPM,
+introns that have exactly 0 or 1 PSI (due to either no contributions from the
+intron coverage or solely coverage from the intron). `filter_low_frags` filters
+out introns that don't have at least `N` number of unique reads:
 
 ```{r}
 ir <- ir %>%
@@ -417,8 +463,8 @@ colnames(ir$flat)
 
 #### Zero coverage
 
-Zero coverage filter has to be computed on the read alignments and
-corresponding eXpress results.
+The zero coverage filter is a special type of filter that has to be computed on
+the read alignments and corresponding eXpress results.
 
 ```{bash}
 python $PRE/zeroCoverage.py experiment/ortho/ortho1/xprs_out/results.xprs \
@@ -441,7 +487,7 @@ head(all_zc)
 ```
 
 The result from `get_batch_intron_zc` is a `data.frame` that can be inspected
-manually if you'd like. To incorporate it to `kma`, use
+manually if you'd like. To incorporate it with a `IntronRetention` object, use
 `summarize_zero_coverage`:
 
 ```{r}
@@ -456,12 +502,11 @@ colnames(ir$flat)
 
 ### Hypothesis testing
 
-[id]: http://example.com/ "Title"
-
-
-Hypothesis testing first aggregates all filters (by taking the intersection of
-all filters), computes the null distribution, then returns a data frame
-summarizing the test:
+Hypothesis testing aggregates all filters (by taking the intersection of all
+filters), computes the null distribution, then returns a data frame summarizing
+the test. Since there is some randomness involved in generating the
+permutations, you might consider setting a seed before calling `retention_test`
+as we do below:
 
 ```{r}
 set.seed(42)

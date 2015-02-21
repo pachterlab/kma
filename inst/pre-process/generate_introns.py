@@ -81,6 +81,12 @@ def main():
 
     logging.basicConfig(format='%(levelname)s: %(message)s', level=logging.INFO)
 
+    if (args.extend == 0):
+        logging.warning("'extend' value is 0. Are you sure this is what you want?")
+    elif (args.extend < 0):
+        logging.error("'extend' value must be positive")
+        sys.exit(1)
+
     # check it output directory exists. if not, make it
     if not os.path.exists( args.out ):
         logging.info("Directory '{0}' does not exist -- making it.".format(args.out))

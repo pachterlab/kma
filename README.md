@@ -11,8 +11,7 @@ To install, first ensure you have the required packages:
 ```{r}
 required_packages <- c("devtools", "data.table", "reshape2", "dplyr")
 install.packages(required_packages)
-library("devtools")
-install_github("pachterlab/kma")
+devtools::install_github("pachterlab/kma")
 ```
 
 Assuming all goes well, load `kma`:
