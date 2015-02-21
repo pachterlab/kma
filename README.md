@@ -11,6 +11,11 @@ To install, first ensure you have the required packages:
 ```{r}
 required_packages <- c("devtools", "data.table", "reshape2", "dplyr")
 install.packages(required_packages)
+```
+
+You can then install the package using `devtools`:
+
+```{r}
 devtools::install_github("pachterlab/kma")
 ```
 
@@ -25,7 +30,7 @@ library("kma")
 After it has been installed, please see the vignette in R:
 
 ```{r}
-vignette("kma", "kma")
+vignette("kma")
 ```
 
 # Bugs and feature requests

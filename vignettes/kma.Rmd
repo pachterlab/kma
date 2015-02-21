@@ -360,7 +360,10 @@ xprs_fnames <- Sys.glob(file.path(base_dir, "experiment/*/*/xprs_out/results.xpr
 xprs_fnames
 ```
 
-Sample names can be inferred from the file path as well:
+`Sys.glob` does wildcard expansion on a character to find file names.
+
+Sample names can be inferred from the file paths by removing the extraneous
+information using `sub` and `gsub`.
 
 ```{r}
 sample_names <- sub(file.path(base_dir, "experiment/[a-z]+/"), "", xprs_fnames) %>%
@@ -383,6 +386,10 @@ You now have three R variables:
   quantification files
 - `sample_names` - a character vector of identifiers for each sample
 - `condition_names` - a character vector of identifiers of conditions
+
+A user need not use `Sys.glob` or have their data structured the way we have
+presented, but if they do, manually typing the sample and condition names is
+unnecessary.
 
 We can now load all the eXpress data into R:
 

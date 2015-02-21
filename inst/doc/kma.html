@@ -298,7 +298,8 @@ xprs_fnames</code></pre>
 <pre><code>## [1] &quot;/Library/Frameworks/R.framework/Versions/3.1/Resources/library/kma/example/experiment/ortho/ortho1/xprs_out/results.xprs&quot;
 ## [2] &quot;/Library/Frameworks/R.framework/Versions/3.1/Resources/library/kma/example/experiment/ortho/ortho2/xprs_out/results.xprs&quot;
 ## [3] &quot;/Library/Frameworks/R.framework/Versions/3.1/Resources/library/kma/example/experiment/ortho/ortho3/xprs_out/results.xprs&quot;</code></pre>
-<p>Sample names can be inferred from the file path as well:</p>
+<p><code>Sys.glob</code> does wildcard expansion on a character to find file names.</p>
+<p>Sample names can be inferred from the file paths by removing the extraneous information using <code>sub</code> and <code>gsub</code>.</p>
 <pre class="r"><code>sample_names &lt;- sub(file.path(base_dir, &quot;experiment/[a-z]+/&quot;), &quot;&quot;, xprs_fnames) %&gt;%
     sub(&quot;xprs_out/results.xprs&quot;, &quot;&quot;, .) %&gt;%
     gsub(&quot;/&quot;, &quot;&quot;, .)
@@ -314,6 +315,7 @@ condition_names</code></pre>
 <li><code>sample_names</code> - a character vector of identifiers for each sample</li>
 <li><code>condition_names</code> - a character vector of identifiers of conditions</li>
 </ul>
+<p>A user need not use <code>Sys.glob</code> or have their data structured the way we have presented, but if they do, manually typing the sample and condition names is unnecessary.</p>
 <p>We can now load all the eXpress data into R:</p>
 <pre class="r"><code>xprs &lt;- read_express(xprs_fnames, sample_names, condition_names)</code></pre>
 <pre><code>## Reading all eXpress data...
