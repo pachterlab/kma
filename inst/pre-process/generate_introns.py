@@ -137,12 +137,12 @@ def main():
 
     intron_trans_out = args.out + os.sep + "intron_to_transcripts.txt"
     with open(intron_trans_out, 'w') as outh:
-        print >> outh, "intron\ttarget_id\tgene\tintron_extension"
+        print >> outh, "intron\ttarget_id\tgene\tintron_extension\tstrand"
         for intron, tlist in i2t.iteritems():
             intron_obj = intron_ops.Intron.from_string(intron, args.extend, args.extend)
             for trans in tlist:
-                print >> outh, "{0}\t{1}\t{2}\t{3}".format(intron_obj.to_string_noext(),
-                                                           trans, i2g[str(intron)], intron)
+                print >> outh, "{0}\t{1}\t{2}\t{3}\t{4}".format(intron_obj.to_string_noext(),
+                                                           trans, i2g[str(intron)], intron, gtf_dict[trans].strand)
                 # print >> outh, intron_obj.to_string_noext(), '\t', trans, '\t', i2g[str(intron)], \
                 #     '\t', intron
 

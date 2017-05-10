@@ -42,6 +42,9 @@ filter_perfect_psi <- function(obj, digits = 5, filter_name = "f_perf_psi")
     # TODO: check if psi is actually calculated
     obj$flat <- check_groupings(obj$flat, c("intron", "condition"))
 
+    # XXX: This is slightly different than from the original version which
+    # check if the mean retention is 0.0 after rounding. that might be a bit more
+    # reasonable?
     obj$flat <- obj$flat %>%
         mutate(round_ret = round(retention, digits)) %>%
         mutate_(.dots = setNames(list(~(!(

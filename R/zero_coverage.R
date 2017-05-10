@@ -39,12 +39,13 @@ get_intron_zc <- function(fname, sample_name, regex = "^chr",
     adjust_method = "bonferroni", rename_target_id = TRUE)
 {
     zc_data <- fread(fname, header = TRUE, data.table = FALSE)
-    zc_max <- filter(zc_data, grepl(regex, reference)) %>%
-        mutate(len = end - start) %>%
-        group_by(reference) %>%
-        filter(len == max(len)) %>%
-        distinct() %>%
-        ungroup()
+
+    zc_max <- dplyr::filter(zc_data, grepl(regex, reference))
+    zc_max <- dplyr::mutate(zc_max, len = end - start)
+    zc_max <- dplyr::group_by(zc_max, reference)
+    zc_max <- dplyr::filter(zc_max, len == max(len))
+    zc_max <- dplyr::distinct(zc_max, .keep_all = TRUE)
+    zc_max <- dplyr::ungroup(zc_max)
 
     zc_max <- zc_max %>%
         mutate(pval = exp(pvalue),
@@ -91,7 +92,7 @@ get_batch_intron_zc <- function(fnames,
 
     # call get_intron_zc on all the samples and dump them into one table
     all_zc <- Map(get_intron_zc, fnames, sample_names, regex) %>%
-        rbind_all()
+        dplyr::bind_rows()
 
     # add in the condition names
     all_zc <- all_zc %>%
