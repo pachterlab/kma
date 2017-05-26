@@ -64,7 +64,7 @@ newIntronRetention <- function(targetExpression,
             select(intron, gene, intron_extension) %>%
             distinct() %>%
             mutate(target_id = intron_extension)
-        intronToUnion <- data.table(rbind_list(intronToUnion, repIntrons))
+        intronToUnion <- data.table(dplyr::bind_rows(intronToUnion, repIntrons))
     }
 
     unique_counts_tbl <- NULL

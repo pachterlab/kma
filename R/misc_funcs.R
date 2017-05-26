@@ -40,7 +40,7 @@ melt_intron_coords <- function(introns)
                 stop = coords[2], stringsAsFactors = F)
         })
 
-    res <- rbind_all(coords_list)
+    res <- dplyr::bind_rows(coords_list)
     mutate(res, intron = introns)
 }
 
