@@ -221,10 +221,17 @@ def gtf_parse(input_gtf):
             continue
 
         try:
-            transcript_id = (
-                gtf_line[8].split(";")[1].split(" ")[2].replace(
-                    "\"",
-                    ""))
+            # transcript_id = (
+            #     gtf_line[8].split(";")[1].split(" ")[2].replace(
+            #         "\"",
+            #         ""))
+            for attr in gtf_line[8].split(";"):
+                attr_name = attr.strip().split(" ")[0]
+                if attr_name == "transcript_id":
+                    transcript_id = attr.strip().split(" ")[1].replace(
+                        "\"",
+                        "")
+                    break
             if transcript_id in bad_transcripts:
                 continue
 
@@ -234,8 +241,16 @@ def gtf_parse(input_gtf):
         if current_transcript is None:
             try:
                 # FIXME: gene_id_attributes isn't being parsed correctly
-                gene_id = gtf_line[8].split(";")[0].split(
-                    " ")[1].replace("\"", "")
+                # gene_id = gtf_line[8].split(";")[0].split(
+                #     " ")[1].replace("\"", "")
+                gene_id = None
+                for attr in gtf_line[8].split(";"):
+                    attr_name = attr.strip().split(" ")[0]
+                    if attr_name == "gene_id":
+                        gene_id = attr.strip().split(" ")[1].replace(
+                            "\"",
+                            "")
+                        break
                 current_transcript = Transcript(
                     transcript_id,
                     gtf_line[0],

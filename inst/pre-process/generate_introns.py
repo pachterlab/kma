@@ -31,7 +31,7 @@ from pyfasta import Fasta
 def bed_to_introns(bed_in, fasta_in, fasta_out):
     logging.info("Opening FASTA: {0}".format(fasta_in))
     logging.info("Note: will take a while the first time it is opened.")
-    fasta = Fasta(fasta_in)
+    fasta = Fasta(fasta_in, key_fn = lambda key: key.split()[0])
 
     bed_h = open(bed_in, 'r')
 
