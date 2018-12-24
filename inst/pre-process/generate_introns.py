@@ -40,7 +40,7 @@ def bed_to_introns(bed_in, fasta_in, fasta_out):
             logging.info("On intron: {0}".format(count))
         ref, start, stop, genename = line.split()
         seq = fasta[ref][int(start):int(stop)]
-        key = seq.fancy_name
+        key = ref + ':' + start + '-' + stop
         if key in all_keys:
             logging.warning("ERROR: {0} appears once already".format(key))
             continue
@@ -61,7 +61,7 @@ def bed_to_introns(bed_in, fasta_in, fasta_out):
     with open(fasta_out, 'w') as outf:
         logging.info("Writing intron sequences out to {0}".format(fasta_out))
         for rec in output_seq:
-        	print('>' + rec.fancy_name, file=outf)
+        	print('>{rname}:{start}-{end}'.format(rname=rec.name, start=str(rec.start - 1), end=str(rec.end)), file=outf)
         	for line in wrap_sequence(60, rec.seq):
         		outf.write(line)
 
