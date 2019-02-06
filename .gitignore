@@ -4,9 +4,8 @@
 # Python
 *.pyc
 
-# pyfasta
-*.fa.flat
-*.fa.gdx
+# pyfaidx
+*.fai
 
 # R files
 *.RData

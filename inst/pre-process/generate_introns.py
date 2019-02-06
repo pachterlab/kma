@@ -14,6 +14,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, see <http://www.gnu.org/licenses/>.
 
+from __future__ import print_function
 import argparse
 import logging
 import os
@@ -22,16 +23,12 @@ import sys
 import gtf_parser
 import intron_ops
 
-from Bio import SeqIO
-from Bio.Seq import Seq
-from Bio.SeqRecord import SeqRecord
-
-from pyfasta import Fasta
+from pyfaidx import Fasta, wrap_sequence
 
 def bed_to_introns(bed_in, fasta_in, fasta_out):
     logging.info("Opening FASTA: {0}".format(fasta_in))
     logging.info("Note: will take a while the first time it is opened.")
-    fasta = Fasta(fasta_in, key_fn = lambda key: key.split()[0])
+    fasta = Fasta(fasta_in, key_function = lambda key: key.split()[0], strict_bounds=True)
 
     bed_h = open(bed_in, 'r')
 
@@ -42,6 +39,7 @@ def bed_to_introns(bed_in, fasta_in, fasta_out):
         if count % 10000 == 0 and count > 0:
             logging.info("On intron: {0}".format(count))
         ref, start, stop, genename = line.split()
+        seq = fasta[ref][int(start):int(stop)]
         key = ref + ':' + start + '-' + stop
         if key in all_keys:
             logging.warning("ERROR: {0} appears once already".format(key))
@@ -52,19 +50,20 @@ def bed_to_introns(bed_in, fasta_in, fasta_out):
 )
             logging.warning("Reference length: {0}".format(len(fasta[ref])))
             continue
-        seq = fasta[ref][int(start):int(stop)]
         if len(seq) == 0:
             logging.warning("Intron length is 0? {0}:{1}-{2}".format(ref, start, stop))
             continue
-        record = SeqRecord(Seq(seq), key, '', '')
-        output_seq.append(record)
+        output_seq.append(seq)
         count += 1
 
     bed_h.close()
 
     with open(fasta_out, 'w') as outf:
         logging.info("Writing intron sequences out to {0}".format(fasta_out))
-        SeqIO.write(output_seq, outf, 'fasta')
+        for rec in output_seq:
+        	print('>{rname}:{start}-{end}'.format(rname=rec.name, start=str(rec.start - 1), end=str(rec.end)), file=outf)
+        	for line in wrap_sequence(60, rec.seq):
+        		outf.write(line)
 
 
 def main():
@@ -137,12 +136,12 @@ def main():
 
     intron_trans_out = args.out + os.sep + "intron_to_transcripts.txt"
     with open(intron_trans_out, 'w') as outh:
-        print >> outh, "intron\ttarget_id\tgene\tintron_extension\tstrand"
+        print("intron\ttarget_id\tgene\tintron_extension\tstrand", file=outh)
         for intron, tlist in i2t.iteritems():
             intron_obj = intron_ops.Intron.from_string(intron, args.extend, args.extend)
             for trans in tlist:
-                print >> outh, "{0}\t{1}\t{2}\t{3}\t{4}".format(intron_obj.to_string_noext(),
-                                                           trans, i2g[str(intron)], intron, gtf_dict[trans].strand)
+                print("{0}\t{1}\t{2}\t{3}\t{4}".format(intron_obj.to_string_noext(),
+                                                           trans, i2g[str(intron)], intron, gtf_dict[trans].strand), file=outh)
                 # print >> outh, intron_obj.to_string_noext(), '\t', trans, '\t', i2g[str(intron)], \
                 #     '\t', intron
 

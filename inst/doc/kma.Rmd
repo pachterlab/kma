@@ -49,11 +49,11 @@ installed the pre-processing tools. From `R`, you can find the path by typing:
 system.file("pre-process", package="kma")
 ```
 
-The only additional dependencies are the Python packages `pyfasta`, `biopython` and `pysam`.
+The only additional dependencies are the Python packages `pyfaidx` and `pysam`.
 All packages can be installed via PyPI:
 
 ```{bash}
-pip install pyfasta biopython pysam
+pip install pyfaidx pysam
 ```
 
 ### Installing the quantification tools
